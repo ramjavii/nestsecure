@@ -5,6 +5,8 @@
 [![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com)
 [![Tests](https://img.shields.io/badge/Tests-Pytest-yellow.svg)](https://pytest.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 Sistema completo de escaneo de vulnerabilidades on-premise para despliegue en Intel NUC. Detecta vulnerabilidades en redes corporativas usando múltiples engines de escaneo (Nmap, OpenVAS, OWASP ZAP, Nuclei) con correlación automática de CVEs y generación de reportes.
 
@@ -132,24 +134,38 @@ npm test
 
 ## 🤝 Contribución
 
-Este es un proyecto privado. Para contribuir:
+¡Las contribuciones son bienvenidas! Este es un proyecto open source y cualquier ayuda es apreciada.
 
-1. Crear un branch: `git checkout -b feature/nueva-funcionalidad`
-2. Commit cambios: `git commit -am 'Add: nueva funcionalidad'`
-3. Push al branch: `git push origin feature/nueva-funcionalidad`
-4. Crear Pull Request
+### Cómo Contribuir
+
+1. **Fork** el proyecto
+2. Crea tu **Feature Branch** (`git checkout -b feature/AmazingFeature`)
+3. **Commit** tus cambios (`git commit -m 'feat: Add some AmazingFeature'`)
+4. **Push** al Branch (`git push origin feature/AmazingFeature`)
+5. Abre un **Pull Request**
+
+Lee nuestra [Guía de Contribución](CONTRIBUTING.md) para más detalles.
+
+### Reportar Bugs
+
+Si encuentras un bug, por favor abre un [Issue](https://github.com/ramjavii/nestsecure/issues) con:
+- Descripción clara del problema
+- Pasos para reproducirlo
+- Comportamiento esperado vs actual
+- Tu entorno (OS, Python version, Docker version)
 
 ## 📝 Licencia
 
-Propietario - Todos los derechos reservados © 2025
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
 
-## 👥 Equipo
+## 👥 Autor
 
-Desarrollado por el equipo de NESTSECURE
+**Fabián Ramos** - [@ramjavii](https://github.com/ramjavii)
 
-## 📞 Soporte
+## 🙏 Agradecimientos
 
-Para soporte, contactar a: security@nestsecure.io
+- A todos los [contribuidores](https://github.com/ramjavii/nestsecure/contributors) que ayudan a mejorar este proyecto
+- Comunidad open source de herramientas de seguridad
 
 ---
 
