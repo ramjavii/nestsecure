@@ -7,7 +7,8 @@
 .PHONY: help install dev test lint clean docker-up docker-down docker-logs
 
 # Variables
-DOCKER_COMPOSE_DEV = docker-compose -f docker-compose.dev.yml
+# Usar "docker compose" (nuevo) en lugar de "docker-compose" (deprecated)
+DOCKER_COMPOSE_DEV = docker compose -f docker-compose.dev.yml
 PYTHON = python
 PIP = pip
 

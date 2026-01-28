@@ -168,7 +168,7 @@ class Settings(BaseSettings):
     PASSWORD_HASH_ROUNDS: int = 12
     
     # Primer superusuario
-    FIRST_SUPERUSER_EMAIL: EmailStr = "admin@nestsecure.local"
+    FIRST_SUPERUSER_EMAIL: EmailStr = "admin@nestsecure.dev"
     FIRST_SUPERUSER_PASSWORD: str = "Admin123!SecurePassword"
     
     @field_validator("SECRET_KEY")
@@ -263,7 +263,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
-    SMTP_FROM_EMAIL: EmailStr = "noreply@nestsecure.local"
+    SMTP_FROM_EMAIL: EmailStr = "noreply@nestsecure.dev"
     SMTP_TLS: bool = True
     
     # -------------------------------------------------------------------------
