@@ -75,10 +75,10 @@ Accede a: `https://localhost` (o IP de tu NUC)
 
 ## 📖 Documentación
 
-- [Arquitectura del Sistema](docs/architecture/system-design.md)
-- [Guía de Instalación](docs/deployment/installation.md)
+- [Arquitectura del Sistema](DOCS/architecture/system-design.md)
+- [Guía de Instalación](DOCS/deployment/installation.md)
 - [API Documentation](http://localhost:8000/docs) (Swagger automático)
-- [Guía de Usuario](docs/user-guide/getting-started.md)
+- [Guía de Usuario](DOCS/user-guide/getting-started.md)
 - [Contexto Completo](CONTEXTO_RESUMEN.md)
 
 ## 🔄 Desarrollo
