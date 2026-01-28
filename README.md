@@ -1,5 +1,11 @@
 # 🔒 NESTSECURE - Sistema de Escaneo de Vulnerabilidades
 
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com)
+[![Tests](https://img.shields.io/badge/Tests-Pytest-yellow.svg)](https://pytest.org)
+
 Sistema completo de escaneo de vulnerabilidades on-premise para despliegue en Intel NUC. Detecta vulnerabilidades en redes corporativas usando múltiples engines de escaneo (Nmap, OpenVAS, OWASP ZAP, Nuclei) con correlación automática de CVEs y generación de reportes.
 
 ## 🎯 Características Principales
@@ -115,10 +121,10 @@ npm test
 
 ## 📊 Roadmap
 
-- [x] Fase 1: Backend core + Autenticación
-- [x] Fase 2: Motor de escaneo (Nmap, OpenVAS)
-- [x] Fase 3: Frontend Dashboard
-- [x] Fase 4: Reportes y Alertas
+- [] Fase 1: Backend core + Autenticación
+- [] Fase 2: Motor de escaneo (Nmap, OpenVAS)
+- [] Fase 3: Frontend Dashboard
+- [] Fase 4: Reportes y Alertas
 - [ ] Fase 5: Integración ZAP y Nuclei
 - [ ] Fase 6: Compliance templates (PCI-DSS, ISO 27001)
 - [ ] Fase 7: API pública para integraciones
