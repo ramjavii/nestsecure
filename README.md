@@ -70,24 +70,36 @@ cp .env.example .env
 # Editar .env con tus configuraciones
 
 # 3. Iniciar servicios
-docker-compose up -d
+make docker-up
 
-# 4. Ejecutar migraciones
-docker-compose exec api alembic upgrade head
+# 4. Ejecutar migraciones (ya incluidas en docker-up)
+# Se ejecutan automáticamente al iniciar
 
-# 5. Crear usuario admin
-docker-compose exec api python -m app.scripts.create_admin
+# 5. Crear usuario demo
+docker exec nestsecure_backend_dev python3 /app/scripts/create_demo.py
+# Credenciales: demo@nestsecure.com / Demo123!
+
+# 6. Probar autenticación
+./backend/scripts/test_auth_manual.sh
 ```
 
-Accede a: `https://localhost` (o IP de tu NUC)
+Accede a:
+- API: `http://localhost:8000`
+- Docs: `http://localhost:8000/docs`
+- Frontend: `https://localhost` (próximamente)
 
 ## 📖 Documentación
 
+### Desarrollo
+- [Progreso Diario](DOCS/DESARROLLO/README.md)
+- [Día 3: JWT Auth + CRUD](DOCS/DESARROLLO/DIA_03_API_AUTH.md)
+- [Guía de Pruebas Auth](DOCS/GUIA_PRUEBAS_AUTH.md)
+
+### Técnica
 - [Arquitectura del Sistema](DOCS/architecture/system-design.md)
-- [Guía de Instalación](DOCS/deployment/installation.md)
 - [API Documentation](http://localhost:8000/docs) (Swagger automático)
-- [Guía de Usuario](DOCS/user-guide/getting-started.md)
-- [Contexto Completo](CONTEXTO_RESUMEN.md)
+- [Guía de Instalación](DOCS/deployment/installation.md)
+- [Testing Guide](DOCS/development/testing.md)
 
 ## 🔄 Desarrollo
 
@@ -112,21 +124,37 @@ npm run dev
 ## 🧪 Testing
 
 ```bash
-# Backend
+# Backend - Todos los tests (132)
 cd backend
-pytest
+pytest -v
 
-# Frontend
+# Backend - Tests específicos
+pytest tests/test_auth/ -v
+pytest tests/test_api/ -v
+
+# Testing manual de API
+./backend/scripts/test_auth_manual.sh
+
+# Frontend (próximamente)
 cd frontend
 npm test
 ```
 
 ## 📊 Roadmap
 
-- [] Fase 1: Backend core + Autenticación
-- [] Fase 2: Motor de escaneo (Nmap, OpenVAS)
-- [] Fase 3: Frontend Dashboard
-- [] Fase 4: Reportes y Alertas
+- [x] **Fase 1: Backend core + Autenticación** ✅
+  - [x] FastAPI con Docker
+  - [x] PostgreSQL + SQLAlchemy async
+  - [x] JWT authentication
+  - [x] Users & Organizations CRUD
+  - [x] 132 tests pasando
+- [ ] **Fase 2: Motor de escaneo (Nmap, OpenVAS)**
+  - [ ] Assets CRUD
+  - [ ] Integración Nmap
+  - [ ] Celery tasks
+  - [ ] CVE correlation
+- [ ] **Fase 3: Frontend Dashboard**
+- [ ] **Fase 4: Reportes y Alertas**
 - [ ] Fase 5: Integración ZAP y Nuclei
 - [ ] Fase 6: Compliance templates (PCI-DSS, ISO 27001)
 - [ ] Fase 7: API pública para integraciones

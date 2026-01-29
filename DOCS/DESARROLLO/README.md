@@ -8,7 +8,8 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 |-----|-------|------|-------|--------|
 | [Día 1](DIA_01_SETUP.md) | 2026-01-28 | Setup del Proyecto y Entorno | 34 tests | ✅ Completado |
 | [Día 2](DIA_02_DATABASE.md) | 2026-01-29 | Capa de Base de Datos y ORM | 82 tests | ✅ Completado |
-| Día 3 | TBD | Endpoints CRUD y Autenticación | TBD | 🔜 Próximo |
+| [Día 3](DIA_03_API_AUTH.md) | 2026-01-29 | JWT Auth + CRUD Users & Organizations | 132 tests | ✅ Completado |
+| Día 4 | TBD | Assets CRUD + Scanning Engine | TBD | 🔜 Próximo |
 
 ## 📊 Resumen de Progreso
 
@@ -16,13 +17,13 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 
 | Métrica | Valor |
 |---------|-------|
-| Días completados | 2 |
-| Tests totales | 82 |
-| Archivos creados | 36+ |
-| Líneas de código | ~4,200 |
+| Días completados | 3 |
+| Tests totales | 132 |
+| Archivos creados | 55+ |
+| Líneas de código | ~7,500 |
 | Modelos ORM | 4 |
-| Schemas Pydantic | 20+ |
-| Endpoints API | 4 (health) |
+| Schemas Pydantic | 28+ |
+| Endpoints API | 20 (auth + CRUD) |
 | Migraciones DB | 1 |
 
 ### Cobertura de Tests
@@ -31,6 +32,9 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 - **Health Endpoints**: 14 tests ✅
 - **Modelos ORM**: 14 tests ✅
 - **Schemas Pydantic**: 30 tests ✅
+- **Auth Endpoints**: 15 tests ✅
+- **Users CRUD**: 20 tests ✅
+- **Organizations CRUD**: 15 tests ✅
 
 ### Tecnologías Implementadas
 
@@ -72,12 +76,22 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 - Tests de DB (48 nuevos)
 - Compatibilidad Python 3.13
 
-### Día 3: API CRUD 🔜
-- Endpoints de Organizations
-- Endpoints de Users
-- Autenticación JWT
-- Middleware multi-tenant
-- Tests de integración
+### Día 3: API Auth + CRUD ✅
+- Sistema JWT completo (access + refresh tokens)
+- 8 schemas de autenticación
+- 5 endpoints de auth (/login, /refresh, /me, etc.)
+- 8 endpoints de Users (CRUD completo)
+- 7 endpoints de Organizations (CRUD completo)
+- Multi-tenancy con permisos por rol
+- 50 tests nuevos (132 total)
+- Scripts de testing manual con curl
+- Guía de pruebas de autenticación
+
+### Día 4: Assets & Scanning 🔜
+- Endpoints de Assets
+- Motor de escaneo con Nmap
+- Celery tasks para scans
+- WebSocket para progreso en tiempo real
 
 ## 📚 Documentación Relacionada
 
