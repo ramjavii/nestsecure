@@ -212,6 +212,165 @@ def sample_scan_config() -> dict:
 
 
 # =============================================================================
+# Fixtures de Autenticación
+# =============================================================================
+@pytest_asyncio.fixture
+async def test_organization(db_session):
+    """
+    Crea una organización de prueba en la base de datos.
+    """
+    from app.models.organization import Organization
+    
+    org = Organization(
+        name="Test Organization",
+        slug="test-org",
+        description="Organization for testing",
+        max_assets=100,
+        is_active=True,
+        settings={},
+    )
+    db_session.add(org)
+    await db_session.commit()
+    await db_session.refresh(org)
+    return org
+
+
+@pytest_asyncio.fixture
+async def test_user(db_session, test_organization):
+    """
+    Crea un usuario de prueba en la base de datos.
+    """
+    from app.models.user import User, UserRole
+    from app.core.security import get_password_hash
+    
+    user = User(
+        email="testuser@example.com",
+        hashed_password=get_password_hash("TestPassword123!"),
+        full_name="Test User",
+        organization_id=test_organization.id,
+        role=UserRole.VIEWER,  # Usuario normal con rol viewer
+        is_active=True,
+        is_superuser=False,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def test_admin(db_session, test_organization):
+    """
+    Crea un usuario admin de prueba.
+    """
+    from app.models.user import User, UserRole
+    from app.core.security import get_password_hash
+    
+    admin = User(
+        email="admin@example.com",
+        hashed_password=get_password_hash("AdminPassword123!"),
+        full_name="Admin User",
+        organization_id=test_organization.id,
+        role=UserRole.ADMIN,
+        is_active=True,
+        is_superuser=False,
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+    return admin
+
+
+@pytest_asyncio.fixture
+async def test_superuser(db_session, test_organization):
+    """
+    Crea un superusuario de prueba.
+    """
+    from app.models.user import User, UserRole
+    from app.core.security import get_password_hash
+    
+    superuser = User(
+        email="superuser@example.com",
+        hashed_password=get_password_hash("SuperPassword123!"),
+        full_name="Super User",
+        organization_id=test_organization.id,
+        role=UserRole.ADMIN,
+        is_active=True,
+        is_superuser=True,
+    )
+    db_session.add(superuser)
+    await db_session.commit()
+    await db_session.refresh(superuser)
+    return superuser
+
+
+@pytest.fixture
+def auth_headers_factory():
+    """
+    Factory para crear headers de autenticación.
+    """
+    from app.core.security import create_access_token
+    
+    def _create_headers(user_id: str, **extra_claims) -> dict:
+        token = create_access_token(subject=user_id, **extra_claims)
+        return {"Authorization": f"Bearer {token}"}
+    
+    return _create_headers
+
+
+@pytest_asyncio.fixture
+async def auth_headers(test_user, auth_headers_factory):
+    """
+    Headers de autenticación para un usuario normal.
+    """
+    return auth_headers_factory(str(test_user.id))
+
+
+@pytest_asyncio.fixture
+async def admin_auth_headers(test_admin, auth_headers_factory):
+    """
+    Headers de autenticación para un admin.
+    """
+    return auth_headers_factory(str(test_admin.id))
+
+
+@pytest_asyncio.fixture
+async def superuser_auth_headers(test_superuser, auth_headers_factory):
+    """
+    Headers de autenticación para un superusuario.
+    """
+    return auth_headers_factory(str(test_superuser.id))
+
+
+@pytest_asyncio.fixture
+async def api_client(db_session) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Cliente HTTP con base de datos de prueba inyectada.
+    
+    Este cliente sobreescribe la dependencia get_db para usar
+    la sesión de prueba en lugar de la real.
+    """
+    from app.main import app
+    from app.db.session import get_db
+    
+    async def override_get_db():
+        yield db_session
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Content-Type": "application/json"}
+    ) as client:
+        yield client
+    
+    # Limpiar override
+    app.dependency_overrides.clear()
+
+
+# =============================================================================
 # Utilidades de testing
 # =============================================================================
 class ResponseValidator:

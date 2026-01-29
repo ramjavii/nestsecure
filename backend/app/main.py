@@ -211,9 +211,8 @@ def create_application() -> FastAPI:
     # -------------------------------------------------------------------------
     # Incluir Routers
     # -------------------------------------------------------------------------
-    # TODO: Día 5+ - Añadir routers de API
-    # from app.api.v1 import api_router
-    # application.include_router(api_router, prefix=settings.API_V1_PREFIX)
+    from app.api.v1.router import api_router
+    application.include_router(api_router, prefix=settings.API_V1_PREFIX)
     
     return application
 

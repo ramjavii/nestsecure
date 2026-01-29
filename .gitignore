@@ -107,4 +107,10 @@ coverage/
 # Documentación generada
 docs/_build/
 site/
-CONTEXTO_RESUMEN.md 
+CONTEXTO_RESUMEN.md
+
+# Planning interno (no commitear)
+.planning/
+*.planning.md
+*_PLAN.md
+ 
