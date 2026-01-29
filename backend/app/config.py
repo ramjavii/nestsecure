@@ -102,10 +102,11 @@ class Settings(BaseSettings):
         Útil para migraciones con Alembic.
         """
         if self.DATABASE_URL:
-            # Convertir asyncpg a psycopg2 si es necesario
-            return self.DATABASE_URL.replace("+asyncpg", "")
+            # Convertir async drivers a sync si es necesario
+            url = self.DATABASE_URL.replace("+asyncpg", "").replace("+psycopg", "+psycopg2")
+            return url
         return (
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
     
@@ -113,14 +114,15 @@ class Settings(BaseSettings):
     def database_url_async(self) -> str:
         """
         Genera la URL de conexión asíncrona para PostgreSQL.
-        Usa asyncpg como driver.
+        Usa psycopg3 (psycopg) como driver async.
         """
         if self.DATABASE_URL:
-            if "+asyncpg" not in self.DATABASE_URL:
-                return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-            return self.DATABASE_URL
+            # Soportar múltiples drivers async
+            if "+psycopg" in self.DATABASE_URL or "+asyncpg" in self.DATABASE_URL:
+                return self.DATABASE_URL.replace("+asyncpg", "+psycopg")
+            return self.DATABASE_URL.replace("postgresql://", "postgresql+psycopg://")
         return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
     

@@ -16,10 +16,9 @@ pydantic-settings==2.1.0
 # -----------------------------------------------------------------------------
 # Base de Datos
 # -----------------------------------------------------------------------------
-sqlalchemy[asyncio]==2.0.25
-asyncpg==0.29.0          # Driver async para PostgreSQL
-alembic==1.13.1          # Migraciones
-psycopg2-binary==2.9.9   # Driver sync para Alembic
+sqlalchemy>=2.0.30       # ORM async (2.0.30+ para Python 3.13)
+psycopg[binary,pool]>=3.1.0  # Driver async/sync para PostgreSQL (psycopg3)
+alembic>=1.13.1          # Migraciones
 
 # -----------------------------------------------------------------------------
 # Cache y Message Broker

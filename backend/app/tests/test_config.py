@@ -148,12 +148,12 @@ class TestDatabaseURLs:
         """
         DADO: Settings con valores por defecto de PostgreSQL
         CUANDO: Se accede a database_url_async
-        ENTONCES: Genera URL con asyncpg driver
+        ENTONCES: Genera URL con psycopg driver (async compatible)
         """
         settings = Settings()
         url = settings.database_url_async
         
-        assert "postgresql+asyncpg://" in url
+        assert "postgresql+psycopg://" in url
         assert settings.POSTGRES_USER in url
         assert settings.POSTGRES_DB in url
     
@@ -161,13 +161,13 @@ class TestDatabaseURLs:
         """
         DADO: Settings con valores por defecto
         CUANDO: Se accede a database_url_sync
-        ENTONCES: Genera URL sin driver async
+        ENTONCES: Genera URL con psycopg2 driver (sync)
         """
         settings = Settings()
         url = settings.database_url_sync
         
-        assert "postgresql://" in url
-        assert "+asyncpg" not in url
+        assert "postgresql+psycopg2://" in url
+        assert "+psycopg://" not in url  # No async driver
     
     def test_database_url_respects_env_var(self):
         """
@@ -175,7 +175,7 @@ class TestDatabaseURLs:
         CUANDO: Se accede a database_url_async
         ENTONCES: Usa el valor especificado
         """
-        custom_url = "postgresql+asyncpg://custom:pass@db:5432/custom_db"
+        custom_url = "postgresql+psycopg://custom:pass@db:5432/custom_db"
         settings = Settings(DATABASE_URL=custom_url)
         
         assert settings.database_url_async == custom_url

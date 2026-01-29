@@ -69,6 +69,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     - Cierra conexiones de forma ordenada
     - Libera recursos
     """
+    # Importar funciones de base de datos
+    from app.db.session import init_db, close_db
+    
     # -------------------------------------------------------------------------
     # STARTUP
     # -------------------------------------------------------------------------
@@ -76,6 +79,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"🚀 Iniciando {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"📍 Entorno: {settings.ENVIRONMENT}")
     logger.info("=" * 60)
+    
+    # Conectar a PostgreSQL
+    try:
+        await init_db()
+        app_state.db_connected = True
+        logger.info("✅ Conexión a PostgreSQL establecida")
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo conectar a PostgreSQL: {e}")
+        app_state.db_connected = False
     
     # Conectar a Redis
     try:
@@ -92,7 +104,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning(f"⚠️ No se pudo conectar a Redis: {e}")
         app_state.redis_connected = False
     
-    # TODO: Día 2 - Conectar a PostgreSQL con SQLAlchemy async
     # TODO: Día 3 - Inicializar Celery workers
     
     logger.info(f"✅ {settings.APP_NAME} iniciado correctamente")
@@ -106,12 +117,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # -------------------------------------------------------------------------
     logger.info("🛑 Apagando aplicación...")
     
+    # Cerrar conexión PostgreSQL
+    if app_state.db_connected:
+        await close_db()
+        logger.info("✅ Conexión a PostgreSQL cerrada")
+    
     # Cerrar conexión Redis
     if app_state.redis_client:
         await app_state.redis_client.close()
         logger.info("✅ Conexión a Redis cerrada")
-    
-    # TODO: Cerrar pool de conexiones a PostgreSQL
     
     logger.info(f"👋 {settings.APP_NAME} apagado correctamente")
 
@@ -284,20 +298,22 @@ async def readiness_check() -> JSONResponse:
     
     Retorna 503 si algún servicio no está disponible.
     """
+    from app.db.session import check_db_connection
+    
     checks = {}
     all_healthy = True
+    
+    # Check PostgreSQL
+    db_status = await check_db_connection()
+    checks["database"] = db_status
+    if db_status["status"] != "up":
+        all_healthy = False
     
     # Check Redis
     redis_status = await _check_redis()
     checks["redis"] = redis_status
     if redis_status["status"] != "up":
         all_healthy = False
-    
-    # TODO: Día 2 - Check PostgreSQL
-    checks["database"] = {
-        "status": "not_configured",
-        "message": "Pendiente de implementación"
-    }
     
     # Construir respuesta
     response_data = {

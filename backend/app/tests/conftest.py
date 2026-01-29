@@ -114,6 +114,55 @@ def mock_redis_disconnected(monkeypatch):
 
 
 # =============================================================================
+# Fixtures de Base de Datos para Tests
+# =============================================================================
+@pytest_asyncio.fixture
+async def db_session():
+    """
+    Crea una sesión de base de datos para tests.
+    
+    Usa SQLite en archivo temporal para tests rápidos.
+    """
+    import tempfile
+    import os
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+    from sqlalchemy.pool import StaticPool
+    
+    from app.db.base import Base
+    # Importar todos los modelos para que SQLAlchemy registre las tablas
+    from app.models import Organization, User, Asset, Service  # noqa: F401
+    
+    # Usar SQLite en memoria con StaticPool para compartir conexión
+    TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+    
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        poolclass=StaticPool,  # Mantiene una sola conexión compartida
+        echo=False,
+        connect_args={"check_same_thread": False},
+    )
+    
+    # Crear todas las tablas
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    # Crear session maker
+    async_session_factory = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
+    
+    async with async_session_factory() as session:
+        yield session
+        await session.rollback()
+    
+    # Limpiar
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    
+    await engine.dispose()
+
+
+# =============================================================================
 # Fixtures de datos de prueba
 # =============================================================================
 @pytest.fixture
@@ -130,10 +179,21 @@ def sample_user_data() -> dict:
 def sample_asset_data() -> dict:
     """Datos de asset de prueba."""
     return {
-        "name": "Test Server",
         "ip_address": "192.168.1.100",
         "asset_type": "server",
         "hostname": "test-server.local",
+        "criticality": "medium",
+    }
+
+
+@pytest.fixture
+def sample_organization_data() -> dict:
+    """Datos de organización de prueba."""
+    return {
+        "name": "Test Organization",
+        "slug": "test-org",
+        "description": "Organization for testing",
+        "max_assets": 100,
     }
 
 

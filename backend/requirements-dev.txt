@@ -16,6 +16,7 @@ pytest-xdist==3.5.0      # Tests paralelos
 httpx==0.26.0            # Para TestClient async
 factory-boy==3.3.0       # Factories para tests
 faker==22.5.1            # Datos fake
+aiosqlite==0.19.0        # SQLite async para tests
 
 # -----------------------------------------------------------------------------
 # Code Quality
