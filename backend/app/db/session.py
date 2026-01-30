@@ -230,3 +230,48 @@ async def check_db_connection() -> dict:
             "status": "down",
             "error": str(e),
         }
+
+
+# =============================================================================
+# Synchronous Session for Celery Workers
+# =============================================================================
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+# Crear engine síncrono para workers de Celery
+sync_engine = create_engine(
+    settings.database_url_sync,
+    echo=settings.DATABASE_ECHO,
+    pool_size=settings.DATABASE_POOL_SIZE,
+    max_overflow=settings.DATABASE_MAX_OVERFLOW,
+    pool_pre_ping=True,
+)
+
+# Session maker síncrono
+SessionLocal = sessionmaker(
+    bind=sync_engine,
+    class_=Session,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
+
+
+def get_sync_db() -> Session:
+    """
+    Obtiene una sesión síncrona de base de datos.
+    
+    Útil para workers de Celery que no pueden usar async.
+    
+    Uso:
+        db = get_sync_db()
+        try:
+            # operaciones
+            db.commit()
+        finally:
+            db.close()
+    
+    Returns:
+        Session síncrona
+    """
+    return SessionLocal()

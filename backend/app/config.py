@@ -99,14 +99,16 @@ class Settings(BaseSettings):
     def database_url_sync(self) -> str:
         """
         Genera la URL de conexión síncrona para PostgreSQL.
-        Útil para migraciones con Alembic.
+        Usa psycopg3 (psycopg) en modo síncrono.
         """
         if self.DATABASE_URL:
-            # Convertir async drivers a sync si es necesario
-            url = self.DATABASE_URL.replace("+asyncpg", "").replace("+psycopg", "+psycopg2")
+            # Usar psycopg (v3) para conexiones síncronas también
+            url = self.DATABASE_URL.replace("+asyncpg", "+psycopg")
+            if "postgresql://" in url and "+psycopg" not in url:
+                url = url.replace("postgresql://", "postgresql+psycopg://")
             return url
         return (
-            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
     

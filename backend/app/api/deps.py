@@ -159,23 +159,38 @@ async def get_current_superuser(
 # =============================================================================
 # Factory de Permisos por Rol
 # =============================================================================
-def require_role(*roles: str):
+# Jerarquía de roles: admin > operator > analyst > viewer
+ROLE_HIERARCHY = {
+    "admin": 4,
+    "operator": 3,
+    "analyst": 2,
+    "viewer": 1,
+}
+
+
+def require_role(minimum_role):
     """
-    Factory para crear dependency que requiere roles específicos.
+    Factory para crear dependency que requiere un rol mínimo.
+    
+    La jerarquía de roles es: admin > operator > analyst > viewer
     
     Args:
-        *roles: Roles permitidos (admin, operator, analyst, viewer)
+        minimum_role: Rol mínimo requerido (UserRole o string)
     
     Returns:
         Dependency function
     
     Uso:
-        @router.get("/admin-only")
-        async def admin_endpoint(
-            user: User = Depends(require_role("admin"))
+        @router.get("/operator-or-higher")
+        async def operator_endpoint(
+            user: User = Depends(require_role(UserRole.OPERATOR))
         ):
             ...
     """
+    # Convertir a string si es UserRole
+    min_role_str = minimum_role.value if hasattr(minimum_role, 'value') else minimum_role
+    min_role_level = ROLE_HIERARCHY.get(min_role_str, 0)
+    
     async def role_checker(
         current_user: Annotated[User, Depends(get_current_active_user)],
     ) -> User:
@@ -183,11 +198,15 @@ def require_role(*roles: str):
         if current_user.is_superuser:
             return current_user
         
-        # Verificar si el rol del usuario está en los roles permitidos
-        if current_user.role not in roles:
+        # Obtener nivel del rol del usuario
+        user_role_str = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
+        user_role_level = ROLE_HIERARCHY.get(user_role_str, 0)
+        
+        # Verificar si el nivel del usuario es suficiente
+        if user_role_level < min_role_level:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Se requiere uno de los siguientes roles: {', '.join(roles)}",
+                detail=f"Se requiere rol {min_role_str} o superior",
             )
         
         return current_user

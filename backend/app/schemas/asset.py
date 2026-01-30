@@ -12,9 +12,10 @@ Incluye:
 """
 
 from datetime import datetime
-from typing import Any, Optional
+from ipaddress import IPv4Address, IPv6Address
+from typing import Any, Optional, Union
 
-from pydantic import Field, IPvAnyAddress, field_validator
+from pydantic import Field, IPvAnyAddress, field_serializer, field_validator
 
 from app.models.asset import AssetCriticality, AssetStatus, AssetType
 from app.schemas.common import BaseSchema, IDSchema, TimestampSchema
@@ -58,9 +59,9 @@ class AssetBase(BaseSchema):
 class AssetCreate(AssetBase):
     """Schema para crear un asset."""
     
-    organization_id: str = Field(
-        ...,
-        description="ID de la organización propietaria",
+    organization_id: Optional[str] = Field(
+        None,
+        description="ID de la organización propietaria (opcional, se usa la del usuario)",
     )
     
     mac_address: Optional[str] = Field(
@@ -209,6 +210,9 @@ class AssetUpdate(BaseSchema):
 class AssetRead(AssetBase, IDSchema, TimestampSchema):
     """Schema para leer un asset (respuesta de API)."""
     
+    # Aceptar tanto str como IPv4Address/IPv6Address del modelo INET
+    ip_address: Union[str, IPv4Address, IPv6Address]
+    
     organization_id: str
     mac_address: Optional[str] = None
     operating_system: Optional[str] = None
@@ -227,6 +231,11 @@ class AssetRead(AssetBase, IDSchema, TimestampSchema):
     vuln_medium_count: int
     vuln_low_count: int
     
+    @field_serializer("ip_address")
+    def serialize_ip(self, ip: Union[str, IPv4Address, IPv6Address]) -> str:
+        """Convierte IPv4Address/IPv6Address a string."""
+        return str(ip)
+    
     # Timestamps
     first_seen: Optional[datetime] = None
     last_seen: Optional[datetime] = None
@@ -236,10 +245,15 @@ class AssetRead(AssetBase, IDSchema, TimestampSchema):
 class AssetReadMinimal(IDSchema):
     """Schema mínimo de asset para referencias."""
     
-    ip_address: str
+    ip_address: Union[str, IPv4Address, IPv6Address]
     hostname: Optional[str] = None
     status: str
     criticality: str
+    
+    @field_serializer("ip_address")
+    def serialize_ip(self, ip: Union[str, IPv4Address, IPv6Address]) -> str:
+        """Convierte IPv4Address/IPv6Address a string."""
+        return str(ip)
 
 
 class AssetReadWithOrg(AssetRead):
@@ -262,12 +276,17 @@ class AssetSummary(BaseSchema):
     """Resumen de un asset."""
     
     id: str
-    ip_address: str
+    ip_address: Union[str, IPv4Address, IPv6Address]
     hostname: Optional[str] = None
     criticality: str
     risk_score: float
     total_vulnerabilities: int
     critical_vulnerabilities: int
+    
+    @field_serializer("ip_address")
+    def serialize_ip(self, ip: Union[str, IPv4Address, IPv6Address]) -> str:
+        """Convierte IPv4Address/IPv6Address a string."""
+        return str(ip)
 
 
 class AssetVulnerabilityStats(BaseSchema):

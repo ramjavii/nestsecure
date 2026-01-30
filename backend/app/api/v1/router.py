@@ -8,12 +8,18 @@ Incluye:
 - /auth: Autenticación y tokens JWT
 - /users: Gestión de usuarios
 - /organizations: Gestión de organizaciones
+- /assets: Gestión de assets
+- /services: Gestión de servicios
+- /dashboard: Estadísticas y resúmenes
 """
 
 from fastapi import APIRouter
 
+from app.api.v1.assets import router as assets_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.organizations import router as organizations_router
+from app.api.v1.services import router as services_router
 from app.api.v1.users import router as users_router
 
 # Router principal de la API v1
@@ -36,6 +42,24 @@ api_router.include_router(
     organizations_router,
     prefix="/organizations",
     tags=["Organizaciones"],
+)
+
+api_router.include_router(
+    assets_router,
+    prefix="/assets",
+    tags=["Assets"],
+)
+
+api_router.include_router(
+    services_router,
+    prefix="/services",
+    tags=["Servicios"],
+)
+
+api_router.include_router(
+    dashboard_router,
+    prefix="/dashboard",
+    tags=["Dashboard"],
 )
 
 # Health check para la API (útil para load balancers)

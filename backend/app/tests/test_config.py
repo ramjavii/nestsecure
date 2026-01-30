@@ -161,13 +161,13 @@ class TestDatabaseURLs:
         """
         DADO: Settings con valores por defecto
         CUANDO: Se accede a database_url_sync
-        ENTONCES: Genera URL con psycopg2 driver (sync)
+        ENTONCES: Genera URL con psycopg driver (sync mode)
         """
         settings = Settings()
         url = settings.database_url_sync
         
-        assert "postgresql+psycopg2://" in url
-        assert "+psycopg://" not in url  # No async driver
+        assert "postgresql+psycopg://" in url
+        assert "+asyncpg" not in url  # No asyncpg driver
     
     def test_database_url_respects_env_var(self):
         """
