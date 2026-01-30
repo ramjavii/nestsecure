@@ -9,9 +9,13 @@ Exports todos los modelos para uso en la aplicación y migraciones.
 
 from app.models.asset import Asset, AssetCriticality, AssetStatus, AssetType
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.cve_cache import CVECache
 from app.models.organization import Organization
+from app.models.scan import Scan, ScanStatus, ScanType
 from app.models.service import Service, ServiceProtocol, ServiceState
 from app.models.user import User, UserRole
+from app.models.vulnerability import Vulnerability, VulnerabilitySeverity, VulnerabilityStatus
+from app.models.vulnerability_comment import VulnerabilityComment
 
 __all__ = [
     # Base classes
@@ -24,6 +28,10 @@ __all__ = [
     "User",
     "Asset",
     "Service",
+    "Scan",
+    "CVECache",
+    "Vulnerability",
+    "VulnerabilityComment",
     # Enums
     "UserRole",
     "AssetType",
@@ -31,4 +39,8 @@ __all__ = [
     "AssetStatus",
     "ServiceProtocol",
     "ServiceState",
+    "ScanType",
+    "ScanStatus",
+    "VulnerabilitySeverity",
+    "VulnerabilityStatus",
 ]

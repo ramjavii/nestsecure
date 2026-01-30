@@ -27,6 +27,7 @@ from app.db.base import Base, TimestampMixin, UUID, JSONB, StringArray
 
 if TYPE_CHECKING:
     from app.models.asset import Asset
+    from app.models.vulnerability import Vulnerability
 
 
 class ServiceProtocol(str, Enum):
@@ -183,6 +184,16 @@ class Service(Base, TimestampMixin):
         JSONB,
         nullable=True,
         default=dict,
+    )
+    
+    # -------------------------------------------------------------------------
+    # Relaciones
+    # -------------------------------------------------------------------------
+    vulnerabilities: Mapped[list["Vulnerability"]] = relationship(
+        "Vulnerability",
+        back_populates="service",
+        lazy="selectin",
+        cascade="all, delete-orphan",
     )
     
     # -------------------------------------------------------------------------

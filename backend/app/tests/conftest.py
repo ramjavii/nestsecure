@@ -131,6 +131,9 @@ async def db_session():
     from app.db.base import Base
     # Importar todos los modelos para que SQLAlchemy registre las tablas
     from app.models import Organization, User, Asset, Service  # noqa: F401
+    from app.models.scan import Scan  # noqa: F401
+    from app.models.cve_cache import CVECache  # noqa: F401
+    from app.models.vulnerability import Vulnerability  # noqa: F401
     
     # Usar SQLite en memoria con StaticPool para compartir conexión
     TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -160,6 +163,13 @@ async def db_session():
         await conn.run_sync(Base.metadata.drop_all)
     
     await engine.dispose()
+
+
+# Alias para compatibilidad
+@pytest_asyncio.fixture
+async def db(db_session):
+    """Alias de db_session para compatibilidad."""
+    yield db_session
 
 
 # =============================================================================
@@ -304,6 +314,29 @@ async def test_superuser(db_session, test_organization):
     return superuser
 
 
+@pytest_asyncio.fixture
+async def test_operator(db_session, test_organization):
+    """
+    Crea un usuario operator de prueba.
+    """
+    from app.models.user import User, UserRole
+    from app.core.security import get_password_hash
+    
+    operator = User(
+        email="operator@example.com",
+        hashed_password=get_password_hash("OperatorPassword123!"),
+        full_name="Operator User",
+        organization_id=test_organization.id,
+        role=UserRole.OPERATOR,
+        is_active=True,
+        is_superuser=False,
+    )
+    db_session.add(operator)
+    await db_session.commit()
+    await db_session.refresh(operator)
+    return operator
+
+
 @pytest.fixture
 def auth_headers_factory():
     """
@@ -332,6 +365,22 @@ async def admin_auth_headers(test_admin, auth_headers_factory):
     Headers de autenticación para un admin.
     """
     return auth_headers_factory(str(test_admin.id))
+
+
+@pytest_asyncio.fixture
+async def auth_headers_admin(test_admin, auth_headers_factory):
+    """
+    Alias para admin_auth_headers (compatibilidad).
+    """
+    return auth_headers_factory(str(test_admin.id))
+
+
+@pytest_asyncio.fixture
+async def auth_headers_operator(test_operator, auth_headers_factory):
+    """
+    Headers de autenticación para un operator.
+    """
+    return auth_headers_factory(str(test_operator.id))
 
 
 @pytest_asyncio.fixture

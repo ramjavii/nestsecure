@@ -19,6 +19,15 @@ from app.schemas.asset import (
     AssetUpdate,
     AssetVulnerabilityStats,
 )
+from app.schemas.cve import (
+    CVEBase,
+    CVERead,
+    CVEReadMinimal,
+    CVESearch,
+    CVEStats,
+    CVESyncRequest,
+    CVESyncStatus,
+)
 from app.schemas.common import (
     BaseSchema,
     BulkOperationResponse,
@@ -42,6 +51,16 @@ from app.schemas.organization import (
     OrganizationStats,
     OrganizationUpdate,
 )
+from app.schemas.scan import (
+    ScanBase,
+    ScanCreate,
+    ScanProgress,
+    ScanRead,
+    ScanReadMinimal,
+    ScanReadWithLogs,
+    ScanStats,
+    ScanUpdate,
+)
 from app.schemas.service import (
     ServiceBase,
     ServiceCreate,
@@ -61,6 +80,18 @@ from app.schemas.user import (
     UserRegister,
     UserUpdate,
     UserUpdatePassword,
+)
+from app.schemas.vulnerability import (
+    VulnerabilityBase,
+    VulnerabilityBulkUpdate,
+    VulnerabilityCreate,
+    VulnerabilityFilter,
+    VulnerabilityRead,
+    VulnerabilityReadMinimal,
+    VulnerabilityReadWithAsset,
+    VulnerabilityReadWithDetails,
+    VulnerabilityStats,
+    VulnerabilityUpdate,
 )
 
 __all__ = [
@@ -114,4 +145,32 @@ __all__ = [
     "ServiceRead",
     "ServiceReadMinimal",
     "ServiceInDB",
+    # Scan
+    "ScanBase",
+    "ScanCreate",
+    "ScanUpdate",
+    "ScanRead",
+    "ScanReadMinimal",
+    "ScanReadWithLogs",
+    "ScanProgress",
+    "ScanStats",
+    # Vulnerability
+    "VulnerabilityBase",
+    "VulnerabilityCreate",
+    "VulnerabilityUpdate",
+    "VulnerabilityRead",
+    "VulnerabilityReadMinimal",
+    "VulnerabilityReadWithAsset",
+    "VulnerabilityReadWithDetails",
+    "VulnerabilityStats",
+    "VulnerabilityBulkUpdate",
+    "VulnerabilityFilter",
+    # CVE
+    "CVEBase",
+    "CVERead",
+    "CVEReadMinimal",
+    "CVESearch",
+    "CVESyncRequest",
+    "CVESyncStatus",
+    "CVEStats",
 ]

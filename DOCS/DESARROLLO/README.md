@@ -10,7 +10,8 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 | [Día 2](DIA_02_DATABASE.md) | 2026-01-29 | Capa de Base de Datos y ORM | 82 tests | ✅ Completado |
 | [Día 3](DIA_03_API_AUTH.md) | 2026-01-29 | JWT Auth + CRUD Users & Organizations | 132 tests | ✅ Completado |
 | [Día 4](DIA_04_ASSETS_SCANNING.md) | 2026-01-30 | Assets CRUD + Celery + Dashboard | 181 tests | ✅ Completado |
-| Día 5 | TBD | Vulnerabilities CRUD + CVE Integration | TBD | 🔜 Próximo |
+| [Día 5](DIA_05_VULNERABILITIES_CVE.md) | 2026-01-30 | Vulnerabilities + Scans + CVE | 234 tests | ✅ Completado |
+| Día 6-7 | 2026-02-01/02 | Testing + Refinamiento | - | 🔜 Próximo |
 
 ## 📊 Resumen de Progreso
 
@@ -18,14 +19,14 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 
 | Métrica | Valor |
 |---------|-------|
-| Días completados | 4 |
-| Tests totales | 181 |
-| Archivos creados | 70+ |
-| Líneas de código | ~12,000 |
-| Modelos ORM | 4 |
-| Schemas Pydantic | 35+ |
-| Endpoints API | 39 |
-| Migraciones DB | 1 |
+| Días completados | 5 |
+| Tests totales | 234 |
+| Archivos creados | 85+ |
+| Líneas de código | ~16,000 |
+| Modelos ORM | 14 |
+| Schemas Pydantic | 50+ |
+| Endpoints API | 64 |
+| Migraciones DB | 3 |
 
 ### Cobertura de Tests
 
@@ -33,12 +34,15 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 - **Health Endpoints**: 14 tests ✅
 - **Modelos ORM**: 14 tests ✅
 - **Schemas Pydantic**: 30 tests ✅
-- **Auth Endpoints**: 15 tests ✅
+- **Auth Endpoints**: 16 tests ✅
 - **Users CRUD**: 20 tests ✅
-- **Organizations CRUD**: 15 tests ✅
+- **Organizations CRUD**: 16 tests ✅
 - **Assets CRUD**: 23 tests ✅
 - **Services CRUD**: 13 tests ✅
 - **Dashboard Stats**: 13 tests ✅
+- **Scans CRUD**: 19 tests ✅
+- **Vulnerabilities CRUD**: 17 tests ✅
+- **CVE API**: 17 tests ✅
 
 ### Tecnologías Implementadas
 
@@ -103,11 +107,20 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 - Multi-tenancy validado
 - 49 tests nuevos (181 total)
 
-### Día 5: Vulnerabilities & CVE 🔜
-- Vulnerabilities CRUD API
-- CVE Integration (NVD API)
-- Risk Scoring Engine
-- Reports Generation API
+### Día 5: Vulnerabilities & CVE ✅
+- Vulnerabilities CRUD API (9 endpoints)
+- Scans CRUD API (10 endpoints)
+- CVE API (6 endpoints)
+- CVE Worker para sincronización NVD
+- 4 modelos nuevos (Scan, Vulnerability, CVECache, VulnerabilityComment)
+- Risk Calculator Service
+- 53 tests nuevos (234 total)
+
+### Día 6-7: Testing & Refinamiento 🔜
+- Integración Nmap worker con API
+- Tests end-to-end
+- Performance testing
+- Documentación completa
 
 ## 📚 Documentación Relacionada
 

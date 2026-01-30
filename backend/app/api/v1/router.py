@@ -11,16 +11,22 @@ Incluye:
 - /assets: Gestión de assets
 - /services: Gestión de servicios
 - /dashboard: Estadísticas y resúmenes
+- /vulnerabilities: Gestión de vulnerabilidades
+- /scans: Gestión de escaneos
+- /cve: Caché de CVEs
 """
 
 from fastapi import APIRouter
 
 from app.api.v1.assets import router as assets_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.cve import router as cve_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.organizations import router as organizations_router
+from app.api.v1.scans import router as scans_router
 from app.api.v1.services import router as services_router
 from app.api.v1.users import router as users_router
+from app.api.v1.vulnerabilities import router as vulnerabilities_router
 
 # Router principal de la API v1
 api_router = APIRouter()
@@ -60,6 +66,24 @@ api_router.include_router(
     dashboard_router,
     prefix="/dashboard",
     tags=["Dashboard"],
+)
+
+api_router.include_router(
+    vulnerabilities_router,
+    prefix="/vulnerabilities",
+    tags=["Vulnerabilidades"],
+)
+
+api_router.include_router(
+    scans_router,
+    prefix="/scans",
+    tags=["Escaneos"],
+)
+
+api_router.include_router(
+    cve_router,
+    prefix="/cve",
+    tags=["CVE"],
 )
 
 # Health check para la API (útil para load balancers)

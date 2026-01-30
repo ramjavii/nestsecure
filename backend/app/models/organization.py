@@ -20,6 +20,8 @@ from app.db.base import Base, TimestampMixin, UUID, JSONB
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.asset import Asset
+    from app.models.scan import Scan
+    from app.models.vulnerability import Vulnerability
 
 
 class Organization(Base, TimestampMixin):
@@ -119,6 +121,20 @@ class Organization(Base, TimestampMixin):
     
     assets: Mapped[list["Asset"]] = relationship(
         "Asset",
+        back_populates="organization",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+    
+    scans: Mapped[list["Scan"]] = relationship(
+        "Scan",
+        back_populates="organization",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+    
+    vulnerabilities: Mapped[list["Vulnerability"]] = relationship(
+        "Vulnerability",
         back_populates="organization",
         lazy="selectin",
         cascade="all, delete-orphan",

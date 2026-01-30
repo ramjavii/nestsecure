@@ -107,10 +107,36 @@ coverage/
 # Documentación generada
 docs/_build/
 site/
-CONTEXTO_RESUMEN.md
 
-# Planning interno (no commitear)
+# Planning interno (no commitear - mantener local)
 .planning/
 *.planning.md
 *_PLAN.md
- 
+CONTEXTO_RESUMEN.md
+
+# Celery
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat.pid
+celeryd.pid
+celeryd@*.%h.pid
+
+# Pytest
+.pytest_cache/
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/settings.json
+.vscode/launch.json

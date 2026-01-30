@@ -29,6 +29,7 @@ from app.db.base import Base, TimestampMixin, UUID, INET, JSONB, StringArray
 if TYPE_CHECKING:
     from app.models.organization import Organization
     from app.models.service import Service
+    from app.models.vulnerability import Vulnerability
 
 
 class AssetType(str, Enum):
@@ -250,6 +251,13 @@ class Asset(Base, TimestampMixin):
     # -------------------------------------------------------------------------
     services: Mapped[list["Service"]] = relationship(
         "Service",
+        back_populates="asset",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+    
+    vulnerabilities: Mapped[list["Vulnerability"]] = relationship(
+        "Vulnerability",
         back_populates="asset",
         lazy="selectin",
         cascade="all, delete-orphan",

@@ -124,13 +124,16 @@ npm run dev
 ## 🧪 Testing
 
 ```bash
-# Backend - Todos los tests (132)
+# Backend - Todos los tests (234)
 cd backend
 pytest -v
 
 # Backend - Tests específicos
-pytest tests/test_auth/ -v
-pytest tests/test_api/ -v
+pytest app/tests/test_api/test_auth.py -v
+pytest app/tests/test_api/test_assets.py -v
+pytest app/tests/test_api/test_vulnerabilities.py -v
+pytest app/tests/test_api/test_scans.py -v
+pytest app/tests/test_api/test_cve.py -v
 
 # Testing manual de API
 ./backend/scripts/test_auth_manual.sh
@@ -142,19 +145,30 @@ npm test
 
 ## 📊 Roadmap
 
-- [x] **Fase 1: Backend core + Autenticación** ✅
+- [x] **Fase 1: Backend Core + Autenticación** ✅ COMPLETADA
   - [x] FastAPI con Docker
   - [x] PostgreSQL + SQLAlchemy async
   - [x] JWT authentication
   - [x] Users & Organizations CRUD
-  - [x] 132 tests pasando
-- [ ] **Fase 2: Motor de escaneo (Nmap, OpenVAS)**
-  - [ ] Assets CRUD
-  - [ ] Integración Nmap
-  - [ ] Celery tasks
-  - [ ] CVE correlation
+  - [x] Assets & Services CRUD
+  - [x] Vulnerabilities & Scans CRUD
+  - [x] CVE Integration (NVD API)
+  - [x] Dashboard Stats API
+  - [x] **234 tests pasando**
+- [ ] **Fase 2: Motor de escaneo** 🟡 EN PROGRESO
+  - [x] Nmap Worker implementado
+  - [ ] Integración Nmap-API
+  - [ ] OpenVAS Integration
+  - [ ] Celery workers activos
 - [ ] **Fase 3: Frontend Dashboard**
+  - [ ] Login & Layout
+  - [ ] Dashboard con métricas
+  - [ ] Gestión de Assets
+  - [ ] Vista de Vulnerabilidades
 - [ ] **Fase 4: Reportes y Alertas**
+  - [ ] Generación PDF/HTML
+  - [ ] Email notifications
+  - [ ] Webhooks
 - [ ] Fase 5: Integración ZAP y Nuclei
 - [ ] Fase 6: Compliance templates (PCI-DSS, ISO 27001)
 - [ ] Fase 7: API pública para integraciones
