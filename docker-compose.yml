@@ -68,24 +68,24 @@ services:
           memory: 512M
 
   # ---------------------------------------------------------------------------
-  # Backend FastAPI
-  # API principal del sistema
+  # API FastAPI
+  # Servicio principal del sistema
   # ---------------------------------------------------------------------------
-  backend:
+  api:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: production
-    container_name: nestsecure_backend
+    container_name: nestsecure_api
     restart: always
     environment:
-      ENVIRONMENT: development
-      DEBUG: "true"
-      LOG_LEVEL: DEBUG
+      ENVIRONMENT: production
+      DEBUG: "false"
+      LOG_LEVEL: INFO
       
       # Base de datos
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
-      DATABASE_ECHO: "true"
+      DATABASE_ECHO: "false"
       
       # Redis
       REDIS_URL: redis://redis:6379/0
@@ -142,9 +142,9 @@ services:
     environment:
       ENVIRONMENT: production
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       SECRET_KEY: ${SECRET_KEY}
       NMAP_PATH: /usr/bin/nmap
       NMAP_TIMEOUT: ${NMAP_TIMEOUT:-3600}
@@ -155,10 +155,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      backend:
+      api:
         condition: service_started
     networks:
       - nestsecure_network
+      - scan_network
     # Worker dedicado a la cola de scanning con 2 workers
     command: celery -A app.workers.celery_app worker --loglevel=INFO --concurrency=2 --queues=scanning --hostname=scanning@%h
     deploy:
@@ -184,9 +185,9 @@ services:
     environment:
       ENVIRONMENT: production
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       SECRET_KEY: ${SECRET_KEY}
       NVD_API_KEY: ${NVD_API_KEY:-}
     volumes:
@@ -205,22 +206,22 @@ services:
           memory: 1G
 
   # ---------------------------------------------------------------------------
-  # Celery Worker - Default Queue
+  # Celery Worker
   # Worker para tareas generales (reports, cleanup, etc.)
   # ---------------------------------------------------------------------------
-  celery_worker_default:
+  worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: production
-    container_name: nestsecure_celery_default
+    container_name: nestsecure_worker
     restart: always
     environment:
       ENVIRONMENT: production
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       SECRET_KEY: ${SECRET_KEY}
     volumes:
       - backend_logs:/app/logs
@@ -232,6 +233,7 @@ services:
         condition: service_healthy
     networks:
       - nestsecure_network
+      - scan_network
     command: celery -A app.workers.celery_app worker --loglevel=INFO --concurrency=2 --queues=reports,maintenance,celery --hostname=default@%h
     deploy:
       resources:
@@ -242,22 +244,23 @@ services:
   # Celery Beat
   # Scheduler para tareas programadas
   # ---------------------------------------------------------------------------
-  celery_beat:
+  beat:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: production
-    container_name: nestsecure_celery_beat
+    container_name: nestsecure_beat
     restart: always
     environment:
       ENVIRONMENT: production
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
     volumes:
       - celery_beat_data:/app/celerybeat
     depends_on:
+      - worker
       - celery_worker_scanning
       - celery_worker_enrichment
     networks:
@@ -275,14 +278,14 @@ services:
     container_name: nestsecure_flower
     restart: always
     environment:
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
+      CELERY_BROKER_URL: redis://redis:6379/1
       FLOWER_BASIC_AUTH: ${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
       FLOWER_PORT: 5555
     ports:
       - "127.0.0.1:5555:5555"
     depends_on:
       - redis
-      - celery_worker_scanning
+      - worker
     networks:
       - nestsecure_network
     command: celery -A app.workers.celery_app flower --port=5555
@@ -291,6 +294,41 @@ services:
         limits:
           memory: 256M
 
+  # ---------------------------------------------------------------------------
+  # OpenVAS (Scanner)
+  # ---------------------------------------------------------------------------
+  openvas:
+    image: greenbone/openvas-scanner:latest
+    container_name: nestsecure_openvas
+    restart: unless-stopped
+    environment:
+      PASSWORD: ${OPENVAS_PASSWORD:?OPENVAS_PASSWORD is required}
+    volumes:
+      - openvas_data:/var/lib/openvas
+    ports:
+      - "127.0.0.1:9390:9390"
+    networks:
+      - scan_network
+
+  # ---------------------------------------------------------------------------
+  # Nginx (Reverse Proxy + Frontend)
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: nestsecure_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+    networks:
+      - nestsecure_network
+
 # =============================================================================
 # Redes
 # =============================================================================
@@ -298,6 +336,12 @@ networks:
   nestsecure_network:
     driver: bridge
     name: nestsecure_network
+  scan_network:
+    driver: bridge
+    name: nestsecure_scan_network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 # =============================================================================
 # Volúmenes persistentes
@@ -313,3 +357,5 @@ volumes:
     name: nestsecure_backend_reports
   celery_beat_data:
     name: nestsecure_celery_beat_data
+  openvas_data:
+    name: nestsecure_openvas_data

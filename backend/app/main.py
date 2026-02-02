@@ -6,11 +6,11 @@
 # routers y event handlers.
 # =============================================================================
 
-import logging
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Callable
+from uuid import uuid4
 
 import redis.asyncio as redis
 from fastapi import FastAPI, Request, Response, status
@@ -19,13 +19,23 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-
-# Configuración del logger
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+from app.utils.logger import (
+    get_logger,
+    setup_logging,
+    set_request_context,
+    clear_context,
 )
-logger = logging.getLogger(__name__)
+
+# Obtener settings primero para configurar logging
+settings = get_settings()
+
+# Configurar sistema de logging estructurado
+setup_logging(
+    level=settings.LOG_LEVEL,
+    log_format=settings.LOG_FORMAT,
+    service_name="nestsecure-api"
+)
+logger = get_logger(__name__)
 
 # Obtener configuración
 settings = get_settings()
@@ -166,47 +176,51 @@ def create_application() -> FastAPI:
     # Compresión Gzip
     application.add_middleware(GZipMiddleware, minimum_size=1000)
     
-    # Middleware para logging de requests
+    # Middleware para request_id y logging
     @application.middleware("http")
-    async def log_requests(request: Request, call_next: Callable) -> Response:
-        """Registra todas las requests entrantes con timing."""
+    async def request_context_middleware(request: Request, call_next: Callable) -> Response:
+        """Establece contexto de request para logging estructurado."""
+        # Generar o usar request_id existente
+        request_id = request.headers.get("X-Request-ID", str(uuid4()))
+        
+        # Establecer contexto de logging
+        set_request_context(request_id=request_id)
+        
         start_time = time.perf_counter()
         
-        # Procesar request
-        response = await call_next(request)
-        
-        # Calcular tiempo de procesamiento
-        process_time = (time.perf_counter() - start_time) * 1000
-        
-        # Log en formato estructurado
-        logger.info(
-            f"{request.method} {request.url.path} - "
-            f"Status: {response.status_code} - "
-            f"Time: {process_time:.2f}ms"
-        )
-        
-        # Añadir header con tiempo de procesamiento
-        response.headers["X-Process-Time"] = f"{process_time:.2f}ms"
-        
-        return response
+        try:
+            response = await call_next(request)
+            
+            # Calcular tiempo de procesamiento
+            process_time = (time.perf_counter() - start_time) * 1000
+            
+            # Log de request
+            logger.info(
+                f"{request.method} {request.url.path} - "
+                f"Status: {response.status_code} - "
+                f"Time: {process_time:.2f}ms"
+            )
+            
+            # Headers de respuesta
+            response.headers["X-Request-ID"] = request_id
+            response.headers["X-Process-Time"] = f"{process_time:.2f}ms"
+            
+            return response
+        finally:
+            # Limpiar contexto
+            clear_context()
     
     # -------------------------------------------------------------------------
     # Exception Handlers
     # -------------------------------------------------------------------------
-    @application.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        """Manejador global de excepciones no capturadas."""
-        logger.error(f"Error no manejado: {exc}", exc_info=True)
-        
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "detail": "Error interno del servidor",
-                "error_type": type(exc).__name__,
-                # Solo mostrar detalles en desarrollo
-                "message": str(exc) if settings.DEBUG else None,
-            }
-        )
+    from app.core.exception_handlers import register_exception_handlers
+    register_exception_handlers(application)
+    
+    # -------------------------------------------------------------------------
+    # Métricas Prometheus
+    # -------------------------------------------------------------------------
+    from app.core.metrics import setup_metrics
+    setup_metrics(application, app_version=settings.APP_VERSION)
     
     # -------------------------------------------------------------------------
     # Incluir Routers

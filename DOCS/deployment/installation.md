@@ -89,7 +89,7 @@ docker compose -f docker-compose.dev.yml up -d
 docker compose ps
 
 # Ver logs
-docker compose logs -f backend
+docker compose logs -f api
 
 # Verificar health
 curl http://localhost:8000/health
@@ -100,14 +100,14 @@ curl http://localhost:8000/health
 Las migraciones se ejecutan automáticamente al iniciar. Para ejecutarlas manualmente:
 
 ```bash
-docker compose exec backend alembic upgrade head
+docker compose exec api alembic upgrade head
 ```
 
 ### 6. Crear Usuario Administrador
 
 ```bash
 # Crear usuario demo
-docker compose exec backend python scripts/create_demo.py
+docker compose exec api python scripts/create_demo.py
 
 # Credenciales por defecto:
 # Email: admin@nestsecure.local
@@ -117,8 +117,8 @@ docker compose exec backend python scripts/create_demo.py
 ### 7. Acceder al Sistema
 
 - **API:** http://localhost:8000
-- **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
+- **Swagger UI:** http://localhost:8000/docs (solo si `DEBUG=true`)
+- **ReDoc:** http://localhost:8000/redoc (solo si `DEBUG=true`)
 
 ## Instalación Manual (Desarrollo)
 
@@ -195,13 +195,13 @@ cd backend
 source venv/bin/activate
 
 # Worker principal
-celery -A app.core.celery_app worker -l info
+celery -A app.workers.celery_app worker -l info
 
 # Worker de escaneo (cola específica)
-celery -A app.core.celery_app worker -Q scanning -l info
+celery -A app.workers.celery_app worker -Q scanning -l info
 
 # Celery Beat (tareas programadas)
-celery -A app.core.celery_app beat -l info
+celery -A app.workers.celery_app beat -l info
 ```
 
 ## Configuración de Producción
@@ -211,7 +211,7 @@ celery -A app.core.celery_app beat -l info
 ```nginx
 # /etc/nginx/sites-available/nestsecure
 
-upstream backend {
+upstream api {
     server 127.0.0.1:8000;
 }
 
@@ -230,7 +230,7 @@ server {
 
     # API
     location /api/ {
-        proxy_pass http://backend;
+        proxy_pass http://api;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -239,7 +239,7 @@ server {
 
     # Health checks
     location /health {
-        proxy_pass http://backend;
+        proxy_pass http://api;
     }
 
     # Frontend (cuando esté listo)
@@ -306,7 +306,7 @@ Group=nestsecure
 WorkingDirectory=/opt/nestsecure/backend
 Environment="PATH=/opt/nestsecure/backend/venv/bin"
 EnvironmentFile=/opt/nestsecure/.env
-ExecStart=/opt/nestsecure/backend/venv/bin/celery -A app.core.celery_app worker -l info -D
+ExecStart=/opt/nestsecure/backend/venv/bin/celery -A app.workers.celery_app worker -l info -D
 Restart=always
 RestartSec=10
 
@@ -373,7 +373,7 @@ cd backend
 
 ```bash
 # Docker
-docker compose logs -f backend
+docker compose logs -f api
 docker compose logs -f celery
 
 # Systemd
@@ -395,7 +395,7 @@ docker compose build --no-cache
 docker compose up -d
 
 # Ejecutar migraciones
-docker compose exec backend alembic upgrade head
+docker compose exec api alembic upgrade head
 ```
 
 ### Manual

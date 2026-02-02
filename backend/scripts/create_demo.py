@@ -42,15 +42,15 @@ async def create_demo_user():
             print('✓ Organización ya existe')
         
         # Crear usuario
-        stmt = select(User).where(User.email == 'demo@nestsecure.com')
+        stmt = select(User).where(User.email == 'admin@nestsecure.com')
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
         
         if not user:
             user = User(
-                email='demo@nestsecure.com',
-                hashed_password=get_password_hash('Demo123!'),
-                full_name='Demo User',
+                email='admin@nestsecure.com',
+                hashed_password=get_password_hash('Admin123!'),
+                full_name='Admin Demo',
                 organization_id=org.id,
                 role=UserRole.ADMIN,
                 is_active=True,
@@ -65,8 +65,8 @@ async def create_demo_user():
         print('\n' + '='*50)
         print('Usuario demo creado exitosamente')
         print('='*50)
-        print('📧 Email: demo@nestsecure.com')
-        print('🔑 Password: Demo123!')
+        print('📧 Email: admin@nestsecure.com')
+        print('🔑 Password: Admin123!')
         print('👤 Role: ADMIN')
         print('🏢 Organización: Demo Organization')
         print('='*50)

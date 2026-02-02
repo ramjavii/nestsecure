@@ -19,11 +19,15 @@ backend/app/tests/
 ├── test_api/
 │   ├── __init__.py
 │   └── test_health.py            # Tests de health endpoints (14 tests)
-└── test_database/
-    ├── __init__.py
-    ├── conftest.py               # Fixtures de DB
-    ├── test_models.py            # Tests de modelos ORM (14 tests)
-    └── test_schemas.py           # Tests de schemas Pydantic (30 tests)
+├── test_database/
+│   ├── __init__.py
+│   ├── conftest.py               # Fixtures de DB
+│   ├── test_models.py            # Tests de modelos ORM (14 tests)
+│   └── test_schemas.py           # Tests de schemas Pydantic (30 tests)
+├── test_services/
+│   └── test_scan_service.py      # Tests de servicios (scans)
+└── test_workers/
+    └── test_nmap_worker.py       # Tests de workers (nmap)
 ```
 
 ## Ejecutar Tests
