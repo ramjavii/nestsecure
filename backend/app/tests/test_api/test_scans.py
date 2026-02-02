@@ -3,6 +3,9 @@
 # =============================================================================
 """
 Tests de integración para los endpoints de scans.
+
+Nota: Estos tests requieren el fixture client_with_db para override
+de la dependencia de base de datos.
 """
 
 import pytest
@@ -19,7 +22,7 @@ class TestCreateScan:
     """Tests para POST /scans."""
     
     @pytest.mark.asyncio
-    async def test_create_scan_success(self, client, auth_headers, test_db):
+    async def test_create_scan_success(self, client_with_db, auth_headers):
         """Test crear scan exitosamente."""
         # Mock de Celery task
         mock_task = MagicMock()
@@ -27,7 +30,7 @@ class TestCreateScan:
         mock_task.delay = MagicMock(return_value=mock_task)
         
         with patch("app.api.v1.scans.openvas_full_scan", mock_task):
-            response = await client.post(
+            response = await client_with_db.post(
                 "/api/v1/scans",
                 headers=auth_headers,
                 json={
@@ -45,9 +48,9 @@ class TestCreateScan:
         assert "id" in data
     
     @pytest.mark.asyncio
-    async def test_create_scan_invalid_targets(self, client, auth_headers):
+    async def test_create_scan_invalid_targets(self, client_with_db, auth_headers):
         """Test crear scan sin targets."""
-        response = await client.post(
+        response = await client_with_db.post(
             "/api/v1/scans",
             headers=auth_headers,
             json={
@@ -59,9 +62,9 @@ class TestCreateScan:
         assert response.status_code == 422  # Validation error
     
     @pytest.mark.asyncio
-    async def test_create_scan_unauthenticated(self, client):
+    async def test_create_scan_unauthenticated(self, client_with_db):
         """Test crear scan sin autenticación."""
-        response = await client.post(
+        response = await client_with_db.post(
             "/api/v1/scans",
             json={
                 "name": "Test Scan",
@@ -80,9 +83,9 @@ class TestListScans:
     """Tests para GET /scans."""
     
     @pytest.mark.asyncio
-    async def test_list_scans_empty(self, client, auth_headers):
+    async def test_list_scans_empty(self, client_with_db, auth_headers):
         """Test listar scans vacío."""
-        response = await client.get(
+        response = await client_with_db.get(
             "/api/v1/scans",
             headers=auth_headers,
         )
@@ -94,9 +97,9 @@ class TestListScans:
         assert "page" in data
     
     @pytest.mark.asyncio
-    async def test_list_scans_pagination(self, client, auth_headers):
+    async def test_list_scans_pagination(self, client_with_db, auth_headers):
         """Test paginación de scans."""
-        response = await client.get(
+        response = await client_with_db.get(
             "/api/v1/scans",
             headers=auth_headers,
             params={"page": 1, "page_size": 10}
@@ -108,9 +111,9 @@ class TestListScans:
         assert data["page_size"] == 10
     
     @pytest.mark.asyncio
-    async def test_list_scans_filter_status(self, client, auth_headers):
+    async def test_list_scans_filter_status(self, client_with_db, auth_headers):
         """Test filtrar scans por estado."""
-        response = await client.get(
+        response = await client_with_db.get(
             "/api/v1/scans",
             headers=auth_headers,
             params={"status": "completed"}
@@ -127,9 +130,9 @@ class TestGetScan:
     """Tests para GET /scans/{id}."""
     
     @pytest.mark.asyncio
-    async def test_get_scan_not_found(self, client, auth_headers):
+    async def test_get_scan_not_found(self, client_with_db, auth_headers):
         """Test obtener scan inexistente."""
-        response = await client.get(
+        response = await client_with_db.get(
             "/api/v1/scans/nonexistent-id",
             headers=auth_headers,
         )
@@ -145,9 +148,9 @@ class TestGetScanStatus:
     """Tests para GET /scans/{id}/status."""
     
     @pytest.mark.asyncio
-    async def test_get_status_not_found(self, client, auth_headers):
+    async def test_get_status_not_found(self, client_with_db, auth_headers):
         """Test estado de scan inexistente."""
-        response = await client.get(
+        response = await client_with_db.get(
             "/api/v1/scans/nonexistent-id/status",
             headers=auth_headers,
         )
@@ -163,9 +166,9 @@ class TestStopScan:
     """Tests para POST /scans/{id}/stop."""
     
     @pytest.mark.asyncio
-    async def test_stop_scan_not_found(self, client, auth_headers):
+    async def test_stop_scan_not_found(self, client_with_db, auth_headers):
         """Test detener scan inexistente."""
-        response = await client.post(
+        response = await client_with_db.post(
             "/api/v1/scans/nonexistent-id/stop",
             headers=auth_headers,
         )
@@ -181,9 +184,9 @@ class TestDeleteScan:
     """Tests para DELETE /scans/{id}."""
     
     @pytest.mark.asyncio
-    async def test_delete_scan_not_found(self, client, auth_headers):
+    async def test_delete_scan_not_found(self, client_with_db, auth_headers):
         """Test eliminar scan inexistente."""
-        response = await client.delete(
+        response = await client_with_db.delete(
             "/api/v1/scans/nonexistent-id",
             headers=auth_headers,
         )

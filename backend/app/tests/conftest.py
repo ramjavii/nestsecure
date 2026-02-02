@@ -79,18 +79,42 @@ async def async_client() -> AsyncGenerator[AsyncClient, None]:
         yield client
 
 
-@pytest.fixture
-def client() -> Generator[AsyncClient, None, None]:
+@pytest_asyncio.fixture
+async def client() -> AsyncGenerator[AsyncClient, None]:
     """
-    Fixture síncrono que crea el cliente asíncrono.
-    Para tests que no necesitan ser async.
+    Fixture asíncrono que crea el cliente asíncrono.
+    Para tests async.
     """
     transport = ASGITransport(app=app)
-    with AsyncClient(
+    async with AsyncClient(
         transport=transport,
         base_url="http://test",
     ) as client:
         yield client
+
+
+@pytest_asyncio.fixture
+async def client_with_db(db_session) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Cliente de test con base de datos de prueba configurada.
+    Hace override de la dependencia get_db para usar SQLite en memoria.
+    """
+    from app.db.session import get_db
+    
+    async def override_get_db():
+        yield db_session
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        yield client
+    
+    # Limpiar override
+    app.dependency_overrides.clear()
 
 
 # =============================================================================
@@ -169,6 +193,13 @@ async def db_session():
 @pytest_asyncio.fixture
 async def db(db_session):
     """Alias de db_session para compatibilidad."""
+    yield db_session
+
+
+# Alias test_db para compatibilidad con tests existentes
+@pytest_asyncio.fixture
+async def test_db(db_session):
+    """Alias de db_session para tests que usan test_db."""
     yield db_session
 
 
