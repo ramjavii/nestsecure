@@ -79,18 +79,18 @@ services:
     container_name: nestsecure_backend
     restart: always
     environment:
-      ENVIRONMENT: production
-      DEBUG: "false"
-      LOG_LEVEL: INFO
+      ENVIRONMENT: development
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
       
       # Base de datos
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
-      DATABASE_ECHO: "false"
+      DATABASE_ECHO: "true"
       
       # Redis
-      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       
       # Seguridad
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
