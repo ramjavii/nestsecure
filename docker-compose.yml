@@ -1,0 +1,316 @@
+# =============================================================================
+# NESTSECURE - Docker Compose Production
+# =============================================================================
+# Configuración de producción para el sistema de escaneo de vulnerabilidades
+# Versión: 1.0.0
+# Fecha: 2026-02-02
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 15 + TimescaleDB
+  # Base de datos principal
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: nestsecure_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nestsecure}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-nestsecure_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nestsecure} -d ${POSTGRES_DB:-nestsecure_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - nestsecure_network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # Cache y broker de mensajes para Celery
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: nestsecure_redis
+    restart: always
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:-}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nestsecure_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ---------------------------------------------------------------------------
+  # Backend FastAPI
+  # API principal del sistema
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_backend
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      LOG_LEVEL: INFO
+      
+      # Base de datos
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
+      DATABASE_ECHO: "false"
+      
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+      
+      # Seguridad
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      
+      # API
+      API_V1_PREFIX: /api/v1
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-["https://nestsecure.example.com"]}
+      
+      # Nmap
+      NMAP_PATH: /usr/bin/nmap
+      NMAP_TIMEOUT: ${NMAP_TIMEOUT:-3600}
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - backend_logs:/app/logs
+      - backend_reports:/app/reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nestsecure_network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker - Scanning Queue
+  # Worker principal para tareas de escaneo Nmap
+  # ---------------------------------------------------------------------------
+  celery_worker_scanning:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_celery_scanning
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+      SECRET_KEY: ${SECRET_KEY}
+      NMAP_PATH: /usr/bin/nmap
+      NMAP_TIMEOUT: ${NMAP_TIMEOUT:-3600}
+    volumes:
+      - backend_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - nestsecure_network
+    # Worker dedicado a la cola de scanning con 2 workers
+    command: celery -A app.workers.celery_app worker --loglevel=INFO --concurrency=2 --queues=scanning --hostname=scanning@%h
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    # Capabilities necesarias para Nmap
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker - Enrichment Queue
+  # Worker para CVE lookups y enriquecimiento
+  # ---------------------------------------------------------------------------
+  celery_worker_enrichment:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_celery_enrichment
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+      SECRET_KEY: ${SECRET_KEY}
+      NVD_API_KEY: ${NVD_API_KEY:-}
+    volumes:
+      - backend_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nestsecure_network
+    command: celery -A app.workers.celery_app worker --loglevel=INFO --concurrency=4 --queues=enrichment --hostname=enrichment@%h
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker - Default Queue
+  # Worker para tareas generales (reports, cleanup, etc.)
+  # ---------------------------------------------------------------------------
+  celery_worker_default:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_celery_default
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+      SECRET_KEY: ${SECRET_KEY}
+    volumes:
+      - backend_logs:/app/logs
+      - backend_reports:/app/reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nestsecure_network
+    command: celery -A app.workers.celery_app worker --loglevel=INFO --concurrency=2 --queues=reports,maintenance,celery --hostname=default@%h
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # Celery Beat
+  # Scheduler para tareas programadas
+  # ---------------------------------------------------------------------------
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_celery_beat
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/2
+    volumes:
+      - celery_beat_data:/app/celerybeat
+    depends_on:
+      - celery_worker_scanning
+      - celery_worker_enrichment
+    networks:
+      - nestsecure_network
+    command: celery -A app.workers.celery_app beat --loglevel=INFO --scheduler=celery.beat:PersistentScheduler --schedule=/app/celerybeat/celerybeat-schedule
+
+  # ---------------------------------------------------------------------------
+  # Flower - Monitoring UI para Celery
+  # ---------------------------------------------------------------------------
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_flower
+    restart: always
+    environment:
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/1
+      FLOWER_BASIC_AUTH: ${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
+      FLOWER_PORT: 5555
+    ports:
+      - "127.0.0.1:5555:5555"
+    depends_on:
+      - redis
+      - celery_worker_scanning
+    networks:
+      - nestsecure_network
+    command: celery -A app.workers.celery_app flower --port=5555
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+# =============================================================================
+# Redes
+# =============================================================================
+networks:
+  nestsecure_network:
+    driver: bridge
+    name: nestsecure_network
+
+# =============================================================================
+# Volúmenes persistentes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: nestsecure_postgres_data
+  redis_data:
+    name: nestsecure_redis_data
+  backend_logs:
+    name: nestsecure_backend_logs
+  backend_reports:
+    name: nestsecure_backend_reports
+  celery_beat_data:
+    name: nestsecure_celery_beat_data

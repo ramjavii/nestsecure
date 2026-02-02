@@ -124,7 +124,7 @@ npm run dev
 ## 🧪 Testing
 
 ```bash
-# Backend - Todos los tests (234)
+# Backend - Todos los tests (259)
 cd backend
 pytest -v
 
@@ -134,6 +134,7 @@ pytest app/tests/test_api/test_assets.py -v
 pytest app/tests/test_api/test_vulnerabilities.py -v
 pytest app/tests/test_api/test_scans.py -v
 pytest app/tests/test_api/test_cve.py -v
+pytest app/tests/test_workers/test_nmap_worker.py -v
 
 # Testing manual de API
 ./backend/scripts/test_auth_manual.sh
@@ -154,12 +155,13 @@ npm test
   - [x] Vulnerabilities & Scans CRUD
   - [x] CVE Integration (NVD API)
   - [x] Dashboard Stats API
-  - [x] **234 tests pasando**
+  - [x] Integración API ↔ Celery Workers
+  - [x] **259 tests pasando**
 - [ ] **Fase 2: Motor de escaneo** 🟡 EN PROGRESO
   - [x] Nmap Worker implementado
-  - [ ] Integración Nmap-API
+  - [x] Integración Nmap-API ✅
   - [ ] OpenVAS Integration
-  - [ ] Celery workers activos
+  - [ ] Celery workers activos en producción
 - [ ] **Fase 3: Frontend Dashboard**
   - [ ] Login & Layout
   - [ ] Dashboard con métricas

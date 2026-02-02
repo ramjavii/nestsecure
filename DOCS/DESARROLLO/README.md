@@ -11,7 +11,8 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 | [Día 3](DIA_03_API_AUTH.md) | 2026-01-29 | JWT Auth + CRUD Users & Organizations | 132 tests | ✅ Completado |
 | [Día 4](DIA_04_ASSETS_SCANNING.md) | 2026-01-30 | Assets CRUD + Celery + Dashboard | 181 tests | ✅ Completado |
 | [Día 5](DIA_05_VULNERABILITIES_CVE.md) | 2026-01-30 | Vulnerabilities + Scans + CVE | 234 tests | ✅ Completado |
-| Día 6-7 | 2026-02-01/02 | Testing + Refinamiento | - | 🔜 Próximo |
+| [Día 6](DIA_06_INTEGRATION_TESTING.md) | 2026-02-02 | Integración API↔Workers + Testing | 259 tests | ✅ Completado |
+| Día 7 | 2026-02-03 | Refinamiento + Performance | - | 🔜 Próximo |
 
 ## 📊 Resumen de Progreso
 
@@ -19,14 +20,15 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 
 | Métrica | Valor |
 |---------|-------|
-| Días completados | 5 |
-| Tests totales | 234 |
-| Archivos creados | 85+ |
-| Líneas de código | ~16,000 |
+| Días completados | 6 |
+| Tests totales | 259 |
+| Archivos creados | 90+ |
+| Líneas de código | ~17,000 |
 | Modelos ORM | 14 |
 | Schemas Pydantic | 50+ |
 | Endpoints API | 64 |
 | Migraciones DB | 3 |
+| Workers Celery | 8 |
 
 ### Cobertura de Tests
 
@@ -43,6 +45,7 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 - **Scans CRUD**: 19 tests ✅
 - **Vulnerabilities CRUD**: 17 tests ✅
 - **CVE API**: 17 tests ✅
+- **Nmap Workers**: 25 tests ✅
 
 ### Tecnologías Implementadas
 

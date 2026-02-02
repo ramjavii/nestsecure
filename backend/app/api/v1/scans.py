@@ -14,7 +14,8 @@ Incluye:
 - GET /stats: Estadísticas de escaneos
 """
 
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -38,7 +39,10 @@ from app.schemas.scan import (
     ScanStats,
     ScanUpdate,
 )
+from app.workers.celery_app import celery_app, get_task_status, cancel_task
 from app.schemas.vulnerability import VulnerabilityReadMinimal
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -294,13 +298,13 @@ async def create_scan(
         engine_config=scan_in.engine_config or {},
         is_scheduled=scan_in.is_scheduled,
         cron_expression=scan_in.cron_expression,
-        status=ScanStatus.PENDING.value,
+        status=ScanStatus.QUEUED.value,
         progress=0,
         logs=[
             {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "level": "info",
-                "message": "Escaneo creado y programado",
+                "message": "Escaneo creado y encolado para ejecución",
             }
         ],
     )
@@ -309,8 +313,39 @@ async def create_scan(
     await db.commit()
     await db.refresh(scan)
     
-    # TODO: Enviar tarea a Celery para ejecutar el escaneo
-    # scan_task.delay(scan.id)
+    # Despachar tarea a Celery según el tipo de scan
+    try:
+        from app.workers.nmap_worker import (
+            discovery_scan,
+            port_scan,
+            execute_scan_task,
+        )
+        
+        # Usar la tarea genérica que maneja todos los tipos
+        task = execute_scan_task.delay(
+            scan_id=scan.id,
+            scan_type=scan_in.scan_type,
+            targets=validated_targets,
+            organization_id=organization_id,
+            port_range=scan_in.port_range,
+            engine_config=scan_in.engine_config or {},
+        )
+        
+        # Guardar el ID de la tarea en el scan
+        scan.celery_task_id = task.id
+        scan.add_log(f"Tarea Celery iniciada: {task.id}", "info")
+        await db.commit()
+        await db.refresh(scan)
+        
+        logger.info(f"Scan {scan.id} encolado con task_id {task.id}")
+        
+    except Exception as e:
+        logger.error(f"Error despachando tarea Celery: {e}")
+        scan.status = ScanStatus.FAILED.value
+        scan.error_message = f"Error al encolar tarea: {str(e)}"
+        scan.add_log(f"Error: {str(e)}", "error")
+        await db.commit()
+        await db.refresh(scan)
     
     return ScanRead.model_validate(scan)
 
@@ -339,18 +374,26 @@ async def cancel_scan(
         db, scan_id, current_user.organization_id
     )
     
-    if scan.status not in [ScanStatus.PENDING.value, ScanStatus.RUNNING.value]:
+    if scan.status not in [ScanStatus.PENDING.value, ScanStatus.RUNNING.value, ScanStatus.QUEUED.value]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No se puede cancelar un escaneo en estado '{scan.status}'",
         )
     
+    # Cancelar tarea en Celery si existe
+    if scan.celery_task_id:
+        try:
+            cancel_task(scan.celery_task_id)
+            scan.add_log(f"Tarea Celery {scan.celery_task_id} cancelada", "warning")
+            logger.info(f"Tarea Celery {scan.celery_task_id} cancelada para scan {scan.id}")
+        except Exception as e:
+            logger.warning(f"Error cancelando tarea Celery: {e}")
+            scan.add_log(f"Error cancelando tarea: {str(e)}", "warning")
+    
     scan.cancel()
+    scan.add_log("Escaneo cancelado por el usuario", "warning")
     await db.commit()
     await db.refresh(scan)
-    
-    # TODO: Enviar señal a Celery para detener la tarea
-    # celery_app.control.revoke(scan.celery_task_id, terminate=True)
     
     return ScanRead.model_validate(scan)
 
@@ -379,17 +422,65 @@ async def get_scan_progress(
         db, scan_id, current_user.organization_id
     )
     
+    # Si tiene celery_task_id y está en ejecución, consultar estado real de Celery
+    estimated_completion = None
+    if scan.celery_task_id and scan.status in [
+        ScanStatus.QUEUED.value, 
+        ScanStatus.RUNNING.value
+    ]:
+        try:
+            task_status = get_task_status(scan.celery_task_id)
+            
+            # Mapear estados de Celery a estados de Scan
+            celery_to_scan_status = {
+                "PENDING": ScanStatus.QUEUED.value,
+                "STARTED": ScanStatus.RUNNING.value,
+                "SUCCESS": ScanStatus.COMPLETED.value,
+                "FAILURE": ScanStatus.FAILED.value,
+                "REVOKED": ScanStatus.CANCELLED.value,
+            }
+            
+            celery_status = task_status.get("status", "PENDING")
+            mapped_status = celery_to_scan_status.get(celery_status)
+            
+            # Actualizar scan si el estado de Celery es diferente
+            if mapped_status and mapped_status != scan.status:
+                if mapped_status == ScanStatus.COMPLETED.value:
+                    scan.complete()
+                elif mapped_status == ScanStatus.FAILED.value:
+                    error = task_status.get("error", "Error desconocido en tarea")
+                    scan.fail(error)
+                elif mapped_status == ScanStatus.CANCELLED.value:
+                    scan.cancel()
+                else:
+                    scan.status = mapped_status
+                
+                await db.commit()
+                await db.refresh(scan)
+            
+            # Estimar tiempo de finalización basado en progreso
+            if scan.progress > 0 and scan.started_at:
+                elapsed = (datetime.now(timezone.utc) - scan.started_at).total_seconds()
+                if elapsed > 0:
+                    total_estimated = (elapsed / scan.progress) * 100
+                    remaining = total_estimated - elapsed
+                    from datetime import timedelta
+                    estimated_completion = datetime.now(timezone.utc) + timedelta(seconds=remaining)
+                    
+        except Exception as e:
+            logger.warning(f"Error consultando estado de Celery: {e}")
+    
     return ScanProgress(
         scan_id=scan.id,
         status=scan.status,
         progress=scan.progress,
-        current_target=scan.current_phase,  # Using current_phase as current target
+        current_target=scan.current_phase,
         targets_scanned=scan.total_hosts_scanned,
         targets_total=len(scan.targets) if scan.targets else 0,
         vulnerabilities_found=scan.vuln_critical + scan.vuln_high + 
                              scan.vuln_medium + scan.vuln_low,
         started_at=scan.started_at,
-        estimated_completion=None,  # TODO: Calcular basado en progreso
+        estimated_completion=estimated_completion,
     )
 
 

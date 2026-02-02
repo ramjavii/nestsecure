@@ -9,6 +9,7 @@ Incluye:
 - port_scan: Escaneo de puertos y servicios en un asset
 - quick_scan: Escaneo rápido de top 100 puertos
 - full_scan: Escaneo completo de todos los puertos
+- execute_scan_task: Tarea principal que orquesta scans y actualiza DB
 """
 
 import logging
@@ -18,12 +19,14 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from celery import shared_task
+from celery.exceptions import SoftTimeLimitExceeded
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.session import SessionLocal
 from app.models.asset import Asset, AssetStatus
+from app.models.scan import Scan, ScanStatus, ScanType
 from app.models.service import Service, ServiceProtocol, ServiceState
 
 logger = logging.getLogger(__name__)
@@ -599,5 +602,473 @@ def scan_network(
     except Exception as e:
         logger.exception(f"Error en scan_network: {e}")
         raise
+    
+    return result
+
+
+# =============================================================================
+# Execute Scan Task - Tarea Principal con Actualización de DB
+# =============================================================================
+@shared_task(
+    bind=True,
+    name="app.workers.nmap_worker.execute_scan_task",
+    max_retries=2,
+    default_retry_delay=120,
+    soft_time_limit=3300,  # 55 minutos
+    time_limit=3600,  # 60 minutos hard limit
+)
+def execute_scan_task(
+    self,
+    scan_id: str,
+    scan_type: str,
+    targets: list[str],
+    organization_id: str,
+    port_range: Optional[str] = None,
+    engine_config: Optional[dict] = None,
+) -> dict[str, Any]:
+    """
+    Tarea principal de escaneo que actualiza el estado en DB.
+    
+    Esta tarea:
+    1. Marca el scan como RUNNING
+    2. Ejecuta el escaneo según el tipo
+    3. Actualiza progreso durante la ejecución
+    4. Marca como COMPLETED o FAILED al terminar
+    
+    Args:
+        scan_id: ID del scan en base de datos
+        scan_type: Tipo de escaneo (discovery, port_scan, full, etc.)
+        targets: Lista de IPs/CIDRs a escanear
+        organization_id: ID de la organización
+        port_range: Rango de puertos opcional
+        engine_config: Configuración adicional del engine
+    
+    Returns:
+        dict con resultados del escaneo
+    """
+    logger.info(f"Iniciando execute_scan_task: scan_id={scan_id}, type={scan_type}")
+    
+    db = get_sync_db()
+    result: dict[str, Any] = {
+        "scan_id": scan_id,
+        "scan_type": scan_type,
+        "targets": targets,
+        "hosts_found": 0,
+        "hosts_scanned": 0,
+        "services_found": 0,
+        "vulnerabilities_found": 0,
+        "errors": [],
+        "success": False,
+    }
+    
+    try:
+        # Obtener scan de la base de datos
+        scan = db.execute(
+            select(Scan).where(Scan.id == scan_id)
+        ).scalar_one_or_none()
+        
+        if not scan:
+            logger.error(f"Scan {scan_id} no encontrado")
+            result["errors"].append(f"Scan {scan_id} no encontrado")
+            return result
+        
+        # Verificar que no está cancelado
+        if scan.status == ScanStatus.CANCELLED.value:
+            logger.info(f"Scan {scan_id} fue cancelado, abortando")
+            result["errors"].append("Scan cancelado")
+            return result
+        
+        # =====================================================================
+        # FASE 1: Marcar como RUNNING
+        # =====================================================================
+        scan.start()
+        scan.add_log(f"Iniciando escaneo tipo '{scan_type}'", "info")
+        scan.update_progress(5, "Iniciando")
+        db.commit()
+        
+        total_targets = len(targets)
+        processed_targets = 0
+        
+        # =====================================================================
+        # FASE 2: Ejecutar escaneo según tipo
+        # =====================================================================
+        if scan_type == ScanType.DISCOVERY.value:
+            # Discovery scan - encontrar hosts activos
+            scan.update_progress(10, "Descubriendo hosts")
+            scan.add_log(f"Escaneando {total_targets} targets", "info")
+            db.commit()
+            
+            all_hosts = []
+            for i, target in enumerate(targets):
+                try:
+                    # Verificar si fue cancelado
+                    db.refresh(scan)
+                    if scan.status == ScanStatus.CANCELLED.value:
+                        logger.info(f"Scan {scan_id} cancelado durante ejecución")
+                        result["errors"].append("Scan cancelado durante ejecución")
+                        return result
+                    
+                    scan.update_progress(
+                        10 + int((i / total_targets) * 80),
+                        f"Escaneando {target}"
+                    )
+                    db.commit()
+                    
+                    # Ejecutar nmap discovery
+                    xml_output = run_nmap(["-sn", target])
+                    hosts = parse_discovery_xml(xml_output)
+                    
+                    # Guardar hosts encontrados como assets
+                    now = datetime.now(timezone.utc)
+                    for host_data in hosts:
+                        ip = host_data.get("ip_address")
+                        if not ip:
+                            continue
+                        
+                        # Buscar asset existente
+                        existing = db.execute(
+                            select(Asset).where(
+                                Asset.organization_id == organization_id,
+                                Asset.ip_address == ip,
+                            )
+                        ).scalar_one_or_none()
+                        
+                        if existing:
+                            existing.last_seen = now
+                            existing.is_reachable = True
+                            if host_data.get("hostname") and not existing.hostname:
+                                existing.hostname = host_data["hostname"]
+                        else:
+                            new_asset = Asset(
+                                organization_id=organization_id,
+                                ip_address=ip,
+                                hostname=host_data.get("hostname"),
+                                mac_address=host_data.get("mac_address"),
+                                status=AssetStatus.ACTIVE.value,
+                                is_reachable=True,
+                                first_seen=now,
+                                last_seen=now,
+                                risk_score=0.0,
+                            )
+                            db.add(new_asset)
+                            result["hosts_found"] += 1
+                        
+                        all_hosts.append(host_data)
+                    
+                    db.commit()
+                    processed_targets += 1
+                    
+                except subprocess.TimeoutExpired:
+                    error_msg = f"Timeout escaneando {target}"
+                    result["errors"].append(error_msg)
+                    scan.add_log(error_msg, "warning")
+                    db.commit()
+                    
+                except subprocess.CalledProcessError as e:
+                    error_msg = f"Error Nmap en {target}: {e.stderr}"
+                    result["errors"].append(error_msg)
+                    scan.add_log(error_msg, "error")
+                    db.commit()
+            
+            result["hosts_scanned"] = len(all_hosts)
+            scan.total_hosts_scanned = total_targets
+            scan.total_hosts_up = len(all_hosts)
+            
+        elif scan_type in [ScanType.PORT_SCAN.value, ScanType.SERVICE_SCAN.value]:
+            # Port scan - escanear puertos en targets específicos
+            scan.update_progress(10, "Escaneando puertos")
+            scan.add_log(f"Escaneando puertos en {total_targets} targets", "info")
+            db.commit()
+            
+            all_services = []
+            for i, target in enumerate(targets):
+                try:
+                    db.refresh(scan)
+                    if scan.status == ScanStatus.CANCELLED.value:
+                        result["errors"].append("Scan cancelado durante ejecución")
+                        return result
+                    
+                    scan.update_progress(
+                        10 + int((i / total_targets) * 80),
+                        f"Escaneando {target}"
+                    )
+                    db.commit()
+                    
+                    # Preparar argumentos de nmap
+                    nmap_args = ["-sV", "-sC"]
+                    if port_range:
+                        nmap_args.extend(["-p", port_range])
+                    else:
+                        nmap_args.append("-F")  # Top 100 ports
+                    nmap_args.append(target)
+                    
+                    xml_output = run_nmap(nmap_args)
+                    scan_data = parse_port_scan_xml(xml_output)
+                    
+                    # Buscar o crear asset
+                    ip = scan_data["host_info"].get("ip_address") or target
+                    asset = db.execute(
+                        select(Asset).where(
+                            Asset.organization_id == organization_id,
+                            Asset.ip_address == ip,
+                        )
+                    ).scalar_one_or_none()
+                    
+                    if not asset:
+                        asset = Asset(
+                            organization_id=organization_id,
+                            ip_address=ip,
+                            hostname=scan_data["host_info"].get("hostname"),
+                            status=AssetStatus.ACTIVE.value,
+                            is_reachable=True,
+                            first_seen=datetime.now(timezone.utc),
+                            last_seen=datetime.now(timezone.utc),
+                        )
+                        db.add(asset)
+                        db.flush()
+                    
+                    # Actualizar asset con OS detection
+                    if scan_data["host_info"].get("os_match"):
+                        asset.operating_system = scan_data["host_info"]["os_match"]
+                    asset.last_scanned = datetime.now(timezone.utc)
+                    asset.last_seen = datetime.now(timezone.utc)
+                    
+                    # Guardar servicios
+                    for svc_data in scan_data["services"]:
+                        port = svc_data["port"]
+                        protocol = svc_data["protocol"]
+                        
+                        existing_svc = db.execute(
+                            select(Service).where(
+                                Service.asset_id == asset.id,
+                                Service.port == port,
+                                Service.protocol == protocol,
+                            )
+                        ).scalar_one_or_none()
+                        
+                        state_map = {
+                            "open": ServiceState.OPEN.value,
+                            "closed": ServiceState.CLOSED.value,
+                            "filtered": ServiceState.FILTERED.value,
+                        }
+                        state = state_map.get(svc_data["state"], ServiceState.UNKNOWN.value)
+                        
+                        if existing_svc:
+                            existing_svc.state = state
+                            existing_svc.service_name = svc_data.get("service_name")
+                            existing_svc.product = svc_data.get("product")
+                            existing_svc.version = svc_data.get("version")
+                        else:
+                            new_service = Service(
+                                asset_id=asset.id,
+                                port=port,
+                                protocol=protocol,
+                                state=state,
+                                service_name=svc_data.get("service_name"),
+                                product=svc_data.get("product"),
+                                version=svc_data.get("version"),
+                                detection_method="nmap",
+                            )
+                            db.add(new_service)
+                        
+                        all_services.append(svc_data)
+                    
+                    db.commit()
+                    processed_targets += 1
+                    result["hosts_scanned"] += 1
+                    
+                except subprocess.TimeoutExpired:
+                    error_msg = f"Timeout escaneando {target}"
+                    result["errors"].append(error_msg)
+                    scan.add_log(error_msg, "warning")
+                    db.commit()
+                    
+                except Exception as e:
+                    error_msg = f"Error en {target}: {str(e)}"
+                    result["errors"].append(error_msg)
+                    scan.add_log(error_msg, "error")
+                    db.commit()
+            
+            result["services_found"] = len(all_services)
+            scan.total_services_found = len(all_services)
+            scan.total_hosts_scanned = processed_targets
+            
+        elif scan_type == ScanType.FULL.value:
+            # Full scan - discovery + port scan completo
+            scan.update_progress(5, "Fase 1: Discovery")
+            scan.add_log("Iniciando escaneo completo (discovery + ports)", "info")
+            db.commit()
+            
+            # Fase 1: Discovery
+            discovered_hosts = []
+            for i, target in enumerate(targets):
+                try:
+                    db.refresh(scan)
+                    if scan.status == ScanStatus.CANCELLED.value:
+                        return result
+                    
+                    scan.update_progress(5 + int((i / total_targets) * 30), f"Discovery: {target}")
+                    db.commit()
+                    
+                    xml_output = run_nmap(["-sn", target])
+                    hosts = parse_discovery_xml(xml_output)
+                    
+                    for host_data in hosts:
+                        ip = host_data.get("ip_address")
+                        if ip:
+                            discovered_hosts.append(ip)
+                            
+                except Exception as e:
+                    result["errors"].append(f"Discovery error {target}: {str(e)}")
+            
+            result["hosts_found"] = len(discovered_hosts)
+            scan.total_hosts_up = len(discovered_hosts)
+            scan.add_log(f"Discovery completado: {len(discovered_hosts)} hosts", "info")
+            db.commit()
+            
+            # Fase 2: Port scan de cada host descubierto
+            scan.update_progress(40, "Fase 2: Port Scan")
+            db.commit()
+            
+            total_discovered = len(discovered_hosts)
+            all_services = []
+            
+            for i, ip in enumerate(discovered_hosts):
+                try:
+                    db.refresh(scan)
+                    if scan.status == ScanStatus.CANCELLED.value:
+                        return result
+                    
+                    scan.update_progress(
+                        40 + int((i / max(total_discovered, 1)) * 55),
+                        f"Port scan: {ip}"
+                    )
+                    db.commit()
+                    
+                    nmap_args = ["-sV", "-sC"]
+                    if port_range:
+                        nmap_args.extend(["-p", port_range])
+                    else:
+                        nmap_args.append("--top-ports=1000")
+                    nmap_args.append(ip)
+                    
+                    xml_output = run_nmap(nmap_args, timeout=600)  # 10 min por host
+                    scan_data = parse_port_scan_xml(xml_output)
+                    
+                    # Guardar asset
+                    asset = db.execute(
+                        select(Asset).where(
+                            Asset.organization_id == organization_id,
+                            Asset.ip_address == ip,
+                        )
+                    ).scalar_one_or_none()
+                    
+                    if not asset:
+                        asset = Asset(
+                            organization_id=organization_id,
+                            ip_address=ip,
+                            status=AssetStatus.ACTIVE.value,
+                            is_reachable=True,
+                            first_seen=datetime.now(timezone.utc),
+                            last_seen=datetime.now(timezone.utc),
+                        )
+                        db.add(asset)
+                        db.flush()
+                    
+                    if scan_data["host_info"].get("os_match"):
+                        asset.operating_system = scan_data["host_info"]["os_match"]
+                    if scan_data["host_info"].get("hostname"):
+                        asset.hostname = scan_data["host_info"]["hostname"]
+                    asset.last_scanned = datetime.now(timezone.utc)
+                    
+                    # Guardar servicios
+                    for svc_data in scan_data["services"]:
+                        existing_svc = db.execute(
+                            select(Service).where(
+                                Service.asset_id == asset.id,
+                                Service.port == svc_data["port"],
+                                Service.protocol == svc_data["protocol"],
+                            )
+                        ).scalar_one_or_none()
+                        
+                        if not existing_svc:
+                            new_service = Service(
+                                asset_id=asset.id,
+                                port=svc_data["port"],
+                                protocol=svc_data["protocol"],
+                                state=svc_data.get("state", "open"),
+                                service_name=svc_data.get("service_name"),
+                                product=svc_data.get("product"),
+                                version=svc_data.get("version"),
+                                detection_method="nmap",
+                            )
+                            db.add(new_service)
+                        
+                        all_services.append(svc_data)
+                    
+                    db.commit()
+                    result["hosts_scanned"] += 1
+                    
+                except SoftTimeLimitExceeded:
+                    scan.add_log(f"Soft time limit alcanzado en {ip}", "warning")
+                    db.commit()
+                    break
+                    
+                except Exception as e:
+                    result["errors"].append(f"Port scan error {ip}: {str(e)}")
+            
+            result["services_found"] = len(all_services)
+            scan.total_services_found = len(all_services)
+            scan.total_hosts_scanned = result["hosts_scanned"]
+        
+        # =====================================================================
+        # FASE 3: Marcar como completado
+        # =====================================================================
+        db.refresh(scan)
+        if scan.status != ScanStatus.CANCELLED.value:
+            scan.complete()
+            scan.add_log(
+                f"Escaneo completado: {result['hosts_scanned']} hosts, "
+                f"{result['services_found']} servicios",
+                "info"
+            )
+            result["success"] = True
+        
+        db.commit()
+        
+        logger.info(
+            f"Scan {scan_id} completado: "
+            f"hosts={result['hosts_scanned']}, services={result['services_found']}"
+        )
+        
+    except SoftTimeLimitExceeded:
+        logger.warning(f"Soft time limit excedido para scan {scan_id}")
+        try:
+            scan = db.execute(select(Scan).where(Scan.id == scan_id)).scalar_one_or_none()
+            if scan:
+                scan.fail("Tiempo límite excedido")
+                scan.add_log("Escaneo detenido: tiempo límite excedido", "error")
+                db.commit()
+        except Exception:
+            pass
+        result["errors"].append("Tiempo límite excedido")
+        
+    except Exception as e:
+        logger.exception(f"Error en execute_scan_task: {e}")
+        result["errors"].append(str(e))
+        
+        try:
+            scan = db.execute(select(Scan).where(Scan.id == scan_id)).scalar_one_or_none()
+            if scan and scan.status not in [ScanStatus.COMPLETED.value, ScanStatus.CANCELLED.value]:
+                scan.fail(str(e))
+                scan.add_log(f"Error: {str(e)}", "error")
+                db.commit()
+        except Exception:
+            pass
+        
+        raise self.retry(exc=e)
+        
+    finally:
+        db.close()
     
     return result

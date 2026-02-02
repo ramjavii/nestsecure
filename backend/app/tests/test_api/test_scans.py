@@ -12,6 +12,7 @@ Cubre:
 """
 
 import pytest
+from unittest.mock import Mock, patch
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -197,12 +198,19 @@ class TestScanGet:
 class TestScanCreate:
     """Tests para crear scans."""
     
+    @patch('app.workers.nmap_worker.execute_scan_task')
     async def test_create_scan_success(
         self,
+        mock_task,
         api_client: AsyncClient,
         auth_headers_operator: dict,
     ):
         """Crea scan correctamente."""
+        # Mock del task de Celery
+        mock_async_result = Mock()
+        mock_async_result.id = "test-task-id-123"
+        mock_task.delay.return_value = mock_async_result
+        
         scan_data = {
             "name": "New Security Scan",
             "scan_type": "port_scan",
@@ -219,8 +227,10 @@ class TestScanCreate:
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == scan_data["name"]
-        assert data["status"] == "pending"
+        assert data["status"] == "queued"
         assert data["progress"] == 0
+        # Verificar que se llamó a Celery
+        mock_task.delay.assert_called_once()
     
     async def test_create_scan_with_cidr(
         self,
