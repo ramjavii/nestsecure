@@ -25,6 +25,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.cve import router as cve_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.organizations import router as organizations_router
+from app.api.v1.scans import router as scans_router
 from app.api.v1.services import router as services_router
 from app.api.v1.users import router as users_router
 
@@ -72,6 +73,12 @@ api_router.include_router(
     cve_router,
     prefix="/cve",
     tags=["CVE"],
+)
+
+api_router.include_router(
+    scans_router,
+    prefix="/scans",
+    tags=["Scans"],
 )
 
 # Health check para la API (útil para load balancers)

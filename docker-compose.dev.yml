@@ -94,6 +94,13 @@ services:
       # Rate Limiting
       RATE_LIMIT_REQUESTS: 100
       RATE_LIMIT_PERIOD: 60
+      
+      # GVM/OpenVAS
+      GVM_HOST: gvm
+      GVM_PORT: 9390
+      GVM_USERNAME: admin
+      GVM_PASSWORD: ${GVM_PASSWORD:-admin}
+      GVM_TIMEOUT: 7200
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -171,6 +178,48 @@ services:
       - nestsecure_network
     command: celery -A app.workers.celery_app beat --loglevel=DEBUG
 
+  # ---------------------------------------------------------------------------
+  # GVM (Greenbone Vulnerability Manager) - OpenVAS
+  # Escáner de vulnerabilidades empresarial
+  # NOTA: GVM tarda 10-15 minutos en inicializar la primera vez
+  # ---------------------------------------------------------------------------
+  gvm:
+    image: greenbone/community-container:stable
+    container_name: nestsecure_gvm_dev
+    hostname: gvm
+    restart: unless-stopped
+    environment:
+      # Password del admin de GVM
+      PASSWORD: ${GVM_PASSWORD:-admin}
+      # Habilitar sync de NVTs de la comunidad
+      COMMUNITY_FEED_SYNC: "true"
+    ports:
+      # Web UI de GSA (Greenbone Security Assistant)
+      - "${GVM_WEB_PORT:-9392}:9392"
+      # API GMP
+      - "${GVM_PORT:-9390}:9390"
+    volumes:
+      # Persistencia de datos de GVM
+      - gvm_data:/var/lib/gvm
+      - gvm_scap:/var/lib/gvm/scap-data
+      - gvm_cert:/var/lib/gvm/cert-data
+      - openvas_plugins:/var/lib/openvas/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9392/ || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 600s  # GVM tarda mucho en iniciar
+    networks:
+      - nestsecure_network
+    # Recursos recomendados para GVM
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+        reservations:
+          memory: 4G
+
 # =============================================================================
 # Redes
 # =============================================================================
@@ -189,3 +238,11 @@ volumes:
     name: nestsecure_redis_data_dev
   backend_cache:
     name: nestsecure_backend_cache_dev
+  gvm_data:
+    name: nestsecure_gvm_data_dev
+  gvm_scap:
+    name: nestsecure_gvm_scap_dev
+  gvm_cert:
+    name: nestsecure_gvm_cert_dev
+  openvas_plugins:
+    name: nestsecure_openvas_plugins_dev

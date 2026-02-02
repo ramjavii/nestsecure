@@ -179,6 +179,27 @@ class Scan(Base, TimestampMixin):
     )
     
     # -------------------------------------------------------------------------
+    # IDs de GVM/OpenVAS
+    # -------------------------------------------------------------------------
+    gvm_target_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="UUID del target en GVM",
+    )
+    
+    gvm_task_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="UUID de la task en GVM",
+    )
+    
+    gvm_report_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="UUID del report en GVM",
+    )
+    
+    # -------------------------------------------------------------------------
     # Resultados
     # -------------------------------------------------------------------------
     total_hosts_scanned: Mapped[int] = mapped_column(
