@@ -191,13 +191,13 @@ export default function ScansPage() {
     scanName: string;
   }>({ open: false, type: 'stop', scanId: '', scanName: '' });
 
-  const { data: scans, isLoading, error } = useScans();
+  const { data: scansResponse, isLoading, error } = useScans();
   const stopScan = useStopScan();
   const deleteScan = useDeleteScan();
   const { toast } = useToast();
 
-  // Usar datos del backend, o mock data solo si está habilitado
-  const data = scans || (ENABLE_MOCK_DATA ? mockScans : []);
+  // Extraer items de la respuesta paginada, o usar mock data si está habilitado
+  const data = scansResponse?.items || (ENABLE_MOCK_DATA ? mockScans : []);
 
   const filteredScans = useMemo(() => {
     return data.filter((scan) => {

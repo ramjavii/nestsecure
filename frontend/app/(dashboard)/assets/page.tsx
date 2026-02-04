@@ -208,12 +208,12 @@ export default function AssetsPage() {
     assetName: string;
   }>({ open: false, assetId: '', assetName: '' });
 
-  const { data: assets, isLoading, error } = useAssets();
+  const { data: assetsResponse, isLoading, error } = useAssets();
   const deleteAsset = useDeleteAsset();
   const { toast } = useToast();
 
-  // Usar datos del backend, o mock data solo si está habilitado
-  const data = assets || (ENABLE_MOCK_DATA ? mockAssets : []);
+  // Extraer items de la respuesta paginada, o usar mock data si está habilitado
+  const data = assetsResponse?.items || (ENABLE_MOCK_DATA ? mockAssets : []);
 
   const handleEditAsset = (asset: Asset) => {
     setEditModal({ open: true, asset });

@@ -22,11 +22,11 @@ export function useScans(params?: { status?: string; type?: string; search?: str
     queryKey: ['scans', params],
     queryFn: () => api.getScans(params),
     refetchInterval: (query) => {
-      const scans = query.state.data as Scan[] | undefined;
-      if (!scans) return false;
+      const response = query.state.data as { items: Scan[] } | undefined;
+      if (!response?.items) return false;
       
       // Si hay algún scan activo, hacer polling cada 5 segundos
-      const hasActiveScans = scans.some(
+      const hasActiveScans = response.items.some(
         (scan) => ['running', 'pending', 'queued'].includes(scan.status)
       );
       return hasActiveScans ? 5000 : false;
@@ -100,16 +100,17 @@ export function useScanStatus(scanId: string) {
  * Hook para verificar si hay scans activos
  */
 export function useHasActiveScans() {
-  const { data: scans } = useScans();
+  const { data: scansResponse } = useScans();
+  const scans = scansResponse?.items || [];
   
   return {
-    hasActive: scans?.some((scan) => 
+    hasActive: scans.some((scan) => 
       ['running', 'pending', 'queued'].includes(scan.status)
-    ) ?? false,
-    runningCount: scans?.filter((scan) => scan.status === 'running').length ?? 0,
-    pendingCount: scans?.filter((scan) => 
+    ),
+    runningCount: scans.filter((scan) => scan.status === 'running').length,
+    pendingCount: scans.filter((scan) => 
       ['pending', 'queued'].includes(scan.status)
-    ).length ?? 0,
+    ).length,
   };
 }
 

@@ -183,11 +183,11 @@ export interface VulnerabilityTrend {
 
 // API response types
 export interface PaginatedResponse<T> {
-  data: T[];
+  items: T[];
   total: number;
   page: number;
-  per_page: number;
-  total_pages: number;
+  page_size: number;
+  pages: number;
 }
 
 export interface ApiError {
