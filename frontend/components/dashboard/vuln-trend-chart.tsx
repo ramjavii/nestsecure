@@ -28,8 +28,30 @@ export function VulnTrendChart({ data, isLoading }: VulnTrendChartProps) {
     return <ChartSkeleton />;
   }
 
-  // Mock data for demo if no data provided
-  const chartData = data || generateMockData();
+  // Use provided data or empty array
+  const chartData = data || [];
+
+  // Show empty state if no data
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Vulnerabilidades - Últimos 30 días</CardTitle>
+          <CardDescription>
+            Tendencia de vulnerabilidades detectadas por severidad
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <p>Sin datos de tendencia disponibles</p>
+              <p className="text-sm mt-1">Ejecuta escaneos para ver la tendencia</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -126,24 +148,4 @@ export function VulnTrendChart({ data, isLoading }: VulnTrendChartProps) {
       </CardContent>
     </Card>
   );
-}
-
-function generateMockData() {
-  const data = [];
-  const now = new Date();
-  
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    
-    data.push({
-      date: date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
-      critical: Math.floor(Math.random() * 5) + 1,
-      high: Math.floor(Math.random() * 10) + 5,
-      medium: Math.floor(Math.random() * 15) + 10,
-      low: Math.floor(Math.random() * 20) + 15,
-    });
-  }
-  
-  return data;
 }

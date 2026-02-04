@@ -61,45 +61,16 @@ const reportTypes = [
   },
 ];
 
-// Mock generated reports
-const mockReports = [
-  {
-    id: "1",
-    name: "Reporte Ejecutivo - Enero 2025",
-    type: "executive",
-    format: "pdf",
-    created_at: new Date("2025-01-15T10:30:00"),
-    size: "2.4 MB",
-    status: "completed",
-  },
-  {
-    id: "2",
-    name: "Análisis de Vulnerabilidades Q4 2024",
-    type: "vulnerability",
-    format: "pdf",
-    created_at: new Date("2025-01-10T14:20:00"),
-    size: "5.1 MB",
-    status: "completed",
-  },
-  {
-    id: "3",
-    name: "Cumplimiento PCI-DSS",
-    type: "compliance",
-    format: "xlsx",
-    created_at: new Date("2025-01-05T09:15:00"),
-    size: "1.2 MB",
-    status: "completed",
-  },
-  {
-    id: "4",
-    name: "Reporte Técnico - Escaneo Infraestructura",
-    type: "technical",
-    format: "json",
-    created_at: new Date("2025-01-02T16:45:00"),
-    size: "890 KB",
-    status: "completed",
-  },
-];
+// Mock generated reports - empty for production
+const mockReports: Array<{
+  id: string;
+  name: string;
+  type: string;
+  format: string;
+  created_at: Date;
+  size: string;
+  status: string;
+}> = [];
 
 const formatIcons: Record<string, React.ReactNode> = {
   pdf: <FileText className="h-4 w-4 text-red-500" />,

@@ -44,60 +44,29 @@ interface ScanDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-// Mock data for demo
-const mockScan: Scan = {
-  id: '1',
-  name: 'Escaneo Red Interna',
-  description: 'Escaneo completo de la red interna 192.168.1.0/24',
-  scan_type: 'full',
-  status: 'running',
-  progress: 67,
-  targets: ['192.168.1.0/24'],
-  port_range: '1-65535',
-  total_hosts_scanned: 254,
-  total_hosts_up: 45,
-  total_services_found: 128,
-  total_vulnerabilities: 23,
-  vuln_critical: 2,
-  vuln_high: 5,
-  vuln_medium: 8,
-  vuln_low: 8,
-  started_at: new Date(Date.now() - 3600000).toISOString(),
+// Empty defaults for production mode
+const emptyScan: Scan = {
+  id: '',
+  name: 'Cargando...',
+  description: null,
+  scan_type: 'quick',
+  status: 'queued',
+  progress: 0,
+  targets: [],
+  port_range: null,
+  total_hosts_scanned: 0,
+  total_hosts_up: 0,
+  total_services_found: 0,
+  total_vulnerabilities: 0,
+  vuln_critical: 0,
+  vuln_high: 0,
+  vuln_medium: 0,
+  vuln_low: 0,
+  started_at: null,
   completed_at: null,
-  created_at: new Date(Date.now() - 7200000).toISOString(),
+  created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
-
-const mockHosts = [
-  { ip: '192.168.1.1', hostname: 'router.local', os: 'RouterOS', ports: [22, 80, 443], status: 'up' },
-  { ip: '192.168.1.10', hostname: 'dc01.local', os: 'Windows Server 2019', ports: [53, 88, 389, 636, 3389], status: 'up' },
-  { ip: '192.168.1.20', hostname: 'web-prod-01', os: 'Ubuntu 22.04', ports: [22, 80, 443, 8080], status: 'up' },
-  { ip: '192.168.1.21', hostname: 'web-prod-02', os: 'Ubuntu 22.04', ports: [22, 80, 443, 8080], status: 'up' },
-  { ip: '192.168.1.30', hostname: 'db-master', os: 'CentOS 8', ports: [22, 3306, 33060], status: 'up' },
-];
-
-const mockVulns: Partial<Vulnerability>[] = [
-  { id: '1', name: 'Apache Log4j RCE', severity: 'critical', cve_id: 'CVE-2021-44228', cvss_score: 10.0, status: 'open' },
-  { id: '2', name: 'SQL Injection', severity: 'critical', cve_id: null, cvss_score: 9.8, status: 'open' },
-  { id: '3', name: 'OpenSSL Buffer Overflow', severity: 'high', cve_id: 'CVE-2022-3602', cvss_score: 7.5, status: 'open' },
-  { id: '4', name: 'XSS Vulnerability', severity: 'medium', cve_id: null, cvss_score: 6.1, status: 'acknowledged' },
-  { id: '5', name: 'Weak SSH Ciphers', severity: 'low', cve_id: null, cvss_score: 3.7, status: 'in_progress' },
-];
-
-const mockLogs = [
-  { time: '10:30:15', level: 'INFO', message: 'Iniciando escaneo de red 192.168.1.0/24' },
-  { time: '10:30:16', level: 'INFO', message: 'Descubriendo hosts activos...' },
-  { time: '10:31:45', level: 'INFO', message: 'Encontrados 45 hosts activos' },
-  { time: '10:31:46', level: 'INFO', message: 'Iniciando escaneo de puertos...' },
-  { time: '10:45:23', level: 'INFO', message: 'Escaneo de puertos completado. 128 servicios detectados.' },
-  { time: '10:45:24', level: 'INFO', message: 'Iniciando detección de servicios...' },
-  { time: '10:52:18', level: 'WARN', message: 'Timeout en host 192.168.1.45 - reintentando...' },
-  { time: '10:53:01', level: 'INFO', message: 'Detección de servicios completada.' },
-  { time: '10:53:02', level: 'INFO', message: 'Iniciando análisis de vulnerabilidades...' },
-  { time: '11:15:34', level: 'CRITICAL', message: 'Vulnerabilidad crítica detectada: CVE-2021-44228 en 192.168.1.20' },
-  { time: '11:16:45', level: 'HIGH', message: 'Vulnerabilidad alta detectada: CVE-2022-3602 en 192.168.1.21' },
-  { time: '11:30:00', level: 'INFO', message: 'Progreso: 67% completado...' },
-];
 
 export default function ScanDetailPage({ params }: ScanDetailPageProps) {
   const { id } = use(params);
@@ -106,10 +75,10 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
   const stopScan = useStopScan();
   const { toast } = useToast();
   const [showStopDialog, setShowStopDialog] = useState(false);
-  const [pollingProgress, setPollingProgress] = useState(67);
+  const [pollingProgress, setPollingProgress] = useState(0);
 
-  // Use mock data for demo
-  const displayScan = scan || mockScan;
+  // Use API data with empty defaults
+  const displayScan = scan || emptyScan;
 
   // Simulate polling for running scans
   useEffect(() => {
@@ -359,53 +328,15 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
             <CardHeader>
               <CardTitle>Hosts Descubiertos</CardTitle>
               <CardDescription>
-                {mockHosts.length} hosts activos encontrados
+                {displayScan.total_hosts_up} hosts activos encontrados
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>IP</TableHead>
-                    <TableHead>Hostname</TableHead>
-                    <TableHead>Sistema Operativo</TableHead>
-                    <TableHead>Puertos Abiertos</TableHead>
-                    <TableHead>Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockHosts.map((host) => (
-                    <TableRow key={host.ip}>
-                      <TableCell className="font-mono">{host.ip}</TableCell>
-                      <TableCell>{host.hostname}</TableCell>
-                      <TableCell>{host.os}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {host.ports.slice(0, 4).map((port) => (
-                            <code
-                              key={port}
-                              className="px-1.5 py-0.5 bg-muted rounded text-xs"
-                            >
-                              {port}
-                            </code>
-                          ))}
-                          {host.ports.length > 4 && (
-                            <span className="text-xs text-muted-foreground">
-                              +{host.ports.length - 4} más
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-status-success">
-                          <span className="h-1.5 w-1.5 rounded-full bg-status-success" />
-                          Activo
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <EmptyState
+                icon={Server}
+                title="Hosts en desarrollo"
+                description="La visualización detallada de hosts estará disponible próximamente. Los hosts descubiertos se muestran en las estadísticas generales."
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -416,61 +347,15 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
             <CardHeader>
               <CardTitle>Vulnerabilidades Detectadas</CardTitle>
               <CardDescription>
-                {mockVulns.length} vulnerabilidades encontradas en este escaneo
+                {displayScan.total_vulnerabilities} vulnerabilidades encontradas en este escaneo
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {mockVulns.length === 0 ? (
-                <EmptyState
-                  icon={AlertTriangle}
-                  title="Sin vulnerabilidades"
-                  description="No se detectaron vulnerabilidades en este escaneo."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Severidad</TableHead>
-                      <TableHead>CVE</TableHead>
-                      <TableHead>CVSS</TableHead>
-                      <TableHead>Estado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockVulns.map((vuln) => (
-                      <TableRow key={vuln.id}>
-                        <TableCell>
-                          <Link
-                            href={`/vulnerabilities/${vuln.id}`}
-                            className="font-medium hover:text-primary transition-colors"
-                          >
-                            {vuln.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <SeverityBadge severity={vuln.severity!} size="sm" />
-                        </TableCell>
-                        <TableCell>
-                          {vuln.cve_id ? (
-                            <code className="text-sm">{vuln.cve_id}</code>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-mono text-sm font-medium">
-                            {vuln.cvss_score?.toFixed(1)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={vuln.status!} size="sm" />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <EmptyState
+                icon={AlertTriangle}
+                title="Sin vulnerabilidades"
+                description="No se detectaron vulnerabilidades en este escaneo o los detalles estarán disponibles al completarse."
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -489,28 +374,11 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
             </CardHeader>
             <CardContent>
               <div className="bg-background border rounded-lg p-4 font-mono text-sm max-h-96 overflow-y-auto space-y-1">
-                {mockLogs.map((log, index) => (
-                  <div key={index} className="flex gap-2">
-                    <span className="text-muted-foreground">[{log.time}]</span>
-                    <span
-                      className={
-                        log.level === 'CRITICAL'
-                          ? 'text-severity-critical'
-                          : log.level === 'HIGH'
-                          ? 'text-severity-high'
-                          : log.level === 'WARN'
-                          ? 'text-severity-medium'
-                          : 'text-foreground'
-                      }
-                    >
-                      [{log.level}]
-                    </span>
-                    <span>{log.message}</span>
-                  </div>
-                ))}
+                <div className="text-muted-foreground text-center py-8">
+                  Los logs en tiempo real estarán disponibles próximamente.
+                </div>
                 {displayScan.status === 'running' && (
-                  <div className="flex gap-2 animate-pulse">
-                    <span className="text-muted-foreground">[--:--:--]</span>
+                  <div className="flex gap-2 animate-pulse justify-center">
                     <span className="text-primary">Escaneando...</span>
                   </div>
                 )}

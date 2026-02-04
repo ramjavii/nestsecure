@@ -44,100 +44,24 @@ interface AssetDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-// Mock data for demo
-const mockAsset: Asset = {
-  id: '1',
-  ip_address: '192.168.1.20',
-  hostname: 'web-prod-01',
-  mac_address: '00:1A:2B:3C:4D:5F',
-  operating_system: 'Ubuntu 22.04 LTS',
+// Empty defaults for production mode
+const emptyAsset: Asset = {
+  id: '',
+  ip_address: 'Cargando...',
+  hostname: null,
+  mac_address: null,
+  operating_system: null,
   asset_type: 'server',
-  criticality: 'high',
-  status: 'active',
-  risk_score: 62,
-  is_reachable: true,
-  tags: ['web-server', 'nginx', 'production'],
-  description: 'Servidor web de producción principal',
-  last_seen_at: new Date(Date.now() - 600000).toISOString(),
-  created_at: new Date(Date.now() - 86400000 * 20).toISOString(),
+  criticality: 'medium',
+  status: 'unknown',
+  risk_score: 0,
+  is_reachable: false,
+  tags: [],
+  description: null,
+  last_seen_at: null,
+  created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
-
-const mockServices: Service[] = [
-  { id: '1', asset_id: '1', port: 22, protocol: 'tcp', service_name: 'SSH', version: 'OpenSSH 8.9', state: 'open', banner: 'SSH-2.0-OpenSSH_8.9', detected_at: new Date().toISOString() },
-  { id: '2', asset_id: '1', port: 80, protocol: 'tcp', service_name: 'HTTP', version: 'nginx/1.24.0', state: 'open', banner: null, detected_at: new Date().toISOString() },
-  { id: '3', asset_id: '1', port: 443, protocol: 'tcp', service_name: 'HTTPS', version: 'nginx/1.24.0', state: 'open', banner: null, detected_at: new Date().toISOString() },
-  { id: '4', asset_id: '1', port: 8080, protocol: 'tcp', service_name: 'HTTP-Proxy', version: 'Apache Tomcat', state: 'open', banner: null, detected_at: new Date().toISOString() },
-  { id: '5', asset_id: '1', port: 3306, protocol: 'tcp', service_name: 'MySQL', version: '8.0.35', state: 'filtered', banner: null, detected_at: new Date().toISOString() },
-];
-
-const mockVulnerabilities: Vulnerability[] = [
-  {
-    id: '1',
-    name: 'Apache Log4j RCE (Log4Shell)',
-    description: 'Remote code execution vulnerability in Apache Log4j',
-    severity: 'critical',
-    status: 'open',
-    cve_id: 'CVE-2021-44228',
-    cvss_score: 10.0,
-    cvss_vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H',
-    cwe_id: 'CWE-502',
-    asset_id: '1',
-    solution: 'Update Log4j to version 2.17.0 or later',
-    references: ['https://nvd.nist.gov/vuln/detail/CVE-2021-44228'],
-    exploit_available: true,
-    detected_at: new Date(Date.now() - 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    name: 'SSL Certificate Expiring Soon',
-    description: 'SSL certificate will expire in less than 30 days',
-    severity: 'medium',
-    status: 'acknowledged',
-    cve_id: null,
-    cvss_score: 5.3,
-    cvss_vector: null,
-    cwe_id: null,
-    asset_id: '1',
-    solution: 'Renew SSL certificate before expiration',
-    references: [],
-    exploit_available: false,
-    detected_at: new Date(Date.now() - 172800000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    name: 'Nginx Vulnerable Version',
-    description: 'Running outdated nginx version with known vulnerabilities',
-    severity: 'high',
-    status: 'in_progress',
-    cve_id: 'CVE-2023-44487',
-    cvss_score: 7.5,
-    cvss_vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H',
-    cwe_id: 'CWE-400',
-    asset_id: '1',
-    solution: 'Update nginx to the latest stable version',
-    references: ['https://nvd.nist.gov/vuln/detail/CVE-2023-44487'],
-    exploit_available: true,
-    detected_at: new Date(Date.now() - 259200000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
-const mockScans: Partial<Scan>[] = [
-  { id: '1', name: 'Escaneo Red Interna', scan_type: 'full', status: 'completed', progress: 100, created_at: new Date(Date.now() - 86400000).toISOString() },
-  { id: '2', name: 'Análisis Vulnerabilidades Web', scan_type: 'vulnerability', status: 'completed', progress: 100, created_at: new Date(Date.now() - 172800000).toISOString() },
-  { id: '3', name: 'Escaneo Programado', scan_type: 'service_scan', status: 'completed', progress: 100, created_at: new Date(Date.now() - 604800000).toISOString() },
-];
-
-const mockTimeline = [
-  { id: '1', type: 'scan', message: 'Escaneo completado - 3 vulnerabilidades detectadas', timestamp: new Date(Date.now() - 86400000).toISOString() },
-  { id: '2', type: 'vuln', message: 'Vulnerabilidad crítica CVE-2021-44228 detectada', timestamp: new Date(Date.now() - 86400000).toISOString() },
-  { id: '3', type: 'status', message: 'Estado cambiado a "acknowledged" en CVE-2023-44487', timestamp: new Date(Date.now() - 172800000).toISOString() },
-  { id: '4', type: 'service', message: 'Nuevo servicio detectado: MySQL en puerto 3306', timestamp: new Date(Date.now() - 259200000).toISOString() },
-  { id: '5', type: 'created', message: 'Asset agregado al inventario', timestamp: new Date(Date.now() - 86400000 * 20).toISOString() },
-];
 
 export default function AssetDetailPage({ params }: AssetDetailPageProps) {
   const { id } = use(params);
@@ -149,10 +73,10 @@ export default function AssetDetailPage({ params }: AssetDetailPageProps) {
   const { toast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Use mock data for demo
-  const displayAsset = asset || mockAsset;
-  const displayServices = services || mockServices;
-  const displayVulns = vulnerabilities || mockVulnerabilities;
+  // Use API data with empty defaults
+  const displayAsset = asset || emptyAsset;
+  const displayServices = services || [];
+  const displayVulns = vulnerabilities || [];
 
   const handleDeleteAsset = async () => {
     try {
@@ -459,47 +383,11 @@ export default function AssetDetailPage({ params }: AssetDetailPageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {mockScans.length === 0 ? (
-                <EmptyState
-                  icon={Radar}
-                  title="Sin escaneos"
-                  description="Este asset no ha sido incluido en ningún escaneo."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockScans.map((scan) => (
-                      <TableRow key={scan.id}>
-                        <TableCell>
-                          <Link
-                            href={`/scans/${scan.id}`}
-                            className="font-medium hover:text-primary transition-colors"
-                          >
-                            {scan.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground capitalize">
-                          {scan.scan_type?.replace('_', ' ')}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={scan.status!} size="sm" />
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {format(new Date(scan.created_at!), 'dd/MM/yyyy', { locale: es })}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <EmptyState
+                icon={Radar}
+                title="Sin escaneos"
+                description="Este asset no ha sido incluido en ningún escaneo aún. El historial de escaneos estará disponible próximamente."
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -517,35 +405,11 @@ export default function AssetDetailPage({ params }: AssetDetailPageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {mockTimeline.map((event, index) => (
-                  <div key={event.id} className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`h-2.5 w-2.5 rounded-full ${
-                          event.type === 'vuln'
-                            ? 'bg-severity-critical'
-                            : event.type === 'scan'
-                            ? 'bg-status-success'
-                            : 'bg-primary'
-                        }`}
-                      />
-                      {index < mockTimeline.length - 1 && (
-                        <div className="w-px flex-1 bg-border my-1" />
-                      )}
-                    </div>
-                    <div className="flex-1 pb-4">
-                      <p className="text-sm">{event.message}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(event.timestamp), {
-                          addSuffix: true,
-                          locale: es,
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <EmptyState
+                icon={Activity}
+                title="Sin eventos"
+                description="El timeline de eventos para este asset estará disponible próximamente."
+              />
             </CardContent>
           </Card>
         </TabsContent>

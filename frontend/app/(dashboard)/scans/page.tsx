@@ -68,116 +68,7 @@ const typeOptions: { value: string; label: string }[] = [
   { value: 'full', label: 'Completo' },
 ];
 
-// Mock data for demo - Solo se usa cuando no hay conexión con el backend
-const ENABLE_MOCK_DATA = false; // Cambiar a true solo para desarrollo sin backend
-
-const mockScans: Scan[] = ENABLE_MOCK_DATA ? [
-  {
-    id: '1',
-    name: 'Escaneo Red Interna',
-    description: 'Escaneo completo de la red interna',
-    scan_type: 'full',
-    status: 'completed',
-    progress: 100,
-    targets: ['192.168.1.0/24'],
-    total_hosts_scanned: 254,
-    total_hosts_up: 45,
-    total_services_found: 128,
-    total_vulnerabilities: 23,
-    vuln_critical: 2,
-    vuln_high: 5,
-    vuln_medium: 8,
-    vuln_low: 8,
-    started_at: new Date(Date.now() - 3600000).toISOString(),
-    completed_at: new Date().toISOString(),
-    created_at: new Date(Date.now() - 7200000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Escaneo Servidores Web',
-    description: 'Análisis de vulnerabilidades en servidores web',
-    scan_type: 'vulnerability',
-    status: 'running',
-    progress: 67,
-    targets: ['10.0.0.1', '10.0.0.2', '10.0.0.3'],
-    total_hosts_scanned: 3,
-    total_hosts_up: 3,
-    total_services_found: 12,
-    total_vulnerabilities: 5,
-    vuln_critical: 1,
-    vuln_high: 2,
-    vuln_medium: 2,
-    vuln_low: 0,
-    started_at: new Date(Date.now() - 1800000).toISOString(),
-    completed_at: null,
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    name: 'Descubrimiento DMZ',
-    description: 'Descubrimiento de hosts en la DMZ',
-    scan_type: 'discovery',
-    status: 'queued',
-    progress: 0,
-    targets: ['172.16.0.0/16'],
-    total_hosts_scanned: 0,
-    total_hosts_up: 0,
-    total_services_found: 0,
-    total_vulnerabilities: 0,
-    vuln_critical: 0,
-    vuln_high: 0,
-    vuln_medium: 0,
-    vuln_low: 0,
-    started_at: null,
-    completed_at: null,
-    created_at: new Date(Date.now() - 600000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '4',
-    name: 'Análisis Firewall',
-    description: 'Escaneo de puertos del firewall principal',
-    scan_type: 'port_scan',
-    status: 'failed',
-    progress: 34,
-    targets: ['192.168.100.1'],
-    total_hosts_scanned: 1,
-    total_hosts_up: 0,
-    total_services_found: 0,
-    total_vulnerabilities: 0,
-    vuln_critical: 0,
-    vuln_high: 0,
-    vuln_medium: 0,
-    vuln_low: 0,
-    started_at: new Date(Date.now() - 86400000).toISOString(),
-    completed_at: new Date(Date.now() - 82800000).toISOString(),
-    created_at: new Date(Date.now() - 90000000).toISOString(),
-    updated_at: new Date(Date.now() - 82800000).toISOString(),
-  },
-  {
-    id: '5',
-    name: 'Escaneo Programado Semanal',
-    description: 'Escaneo automático semanal',
-    scan_type: 'service_scan',
-    status: 'pending',
-    progress: 0,
-    targets: ['192.168.0.0/16'],
-    total_hosts_scanned: 0,
-    total_hosts_up: 0,
-    total_services_found: 0,
-    total_vulnerabilities: 0,
-    vuln_critical: 0,
-    vuln_high: 0,
-    vuln_medium: 0,
-    vuln_low: 0,
-    started_at: null,
-    completed_at: null,
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-] : [];
+// Production mode - no mock data
 
 export default function ScansPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -196,8 +87,8 @@ export default function ScansPage() {
   const deleteScan = useDeleteScan();
   const { toast } = useToast();
 
-  // Extraer items de la respuesta paginada, o usar mock data si está habilitado
-  const data = scansResponse?.items || (ENABLE_MOCK_DATA ? mockScans : []);
+  // Extraer items de la respuesta paginada
+  const data = scansResponse?.items || [];
 
   const filteredScans = useMemo(() => {
     return data.filter((scan) => {

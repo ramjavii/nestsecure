@@ -14,24 +14,24 @@ export default function DashboardPage() {
   const { data: recentScans, isLoading: scansLoading } = useRecentScans();
   const { data: vulnTrend, isLoading: trendLoading } = useVulnerabilityTrend();
 
-  // Mock stats for demo
-  const mockStats = {
-    assets: { total: 156, active: 142, inactive: 14 },
-    scans: { running: 3, completed: 47 },
+  // Default empty stats when no data from API
+  const emptyStats = {
+    assets: { total: 0, active: 0, inactive: 0 },
+    scans: { running: 0, completed: 0 },
     vulnerabilities: { 
-      total: 155, 
-      critical: 8, 
-      high: 23, 
-      medium: 45, 
-      low: 67, 
-      info: 12,
-      open: 89,
-      fixed: 66 
+      total: 0, 
+      critical: 0, 
+      high: 0, 
+      medium: 0, 
+      low: 0, 
+      info: 0,
+      open: 0,
+      fixed: 0 
     },
-    risk_score: 72,
+    risk_score: 0,
   };
 
-  const displayStats = stats || mockStats;
+  const displayStats = stats || emptyStats;
 
   return (
     <div className="space-y-6">

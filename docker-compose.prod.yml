@@ -1,0 +1,315 @@
+# =============================================================================
+# NESTSECURE - Docker Compose Production (Optimizado para NUC)
+# =============================================================================
+# Configuración optimizada para Intel NUC con 16GB RAM
+# USO: docker compose -f docker-compose.prod.yml up -d
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 15 + TimescaleDB
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: nestsecure_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nestsecure}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-nestsecure_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nestsecure} -d ${POSTGRES_DB:-nestsecure_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - nestsecure_network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: nestsecure_redis
+    restart: always
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nestsecure_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ---------------------------------------------------------------------------
+  # API FastAPI
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_api
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      LOG_LEVEL: INFO
+      
+      # Base de datos
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
+      DATABASE_ECHO: "false"
+      
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      
+      # Seguridad
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      
+      # API
+      API_V1_PREFIX: /api/v1
+      BACKEND_CORS_ORIGINS: '["http://localhost","http://localhost:3000","http://localhost:80","http://${NUC_IP:-192.168.1.100}"]'
+      
+      # Nmap
+      NMAP_PATH: /usr/bin/nmap
+      NMAP_TIMEOUT: ${NMAP_TIMEOUT:-3600}
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - backend_logs:/app/logs
+      - backend_reports:/app/reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nestsecure_network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # Frontend Next.js (Production Build)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: http://${NUC_IP:-localhost}/api/v1
+        NEXT_PUBLIC_WS_URL: ws://${NUC_IP:-localhost}/ws
+    container_name: nestsecure_frontend
+    restart: always
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://${NUC_IP:-localhost}/api/v1
+      NEXT_PUBLIC_WS_URL: ws://${NUC_IP:-localhost}/ws
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - nestsecure_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker - Scanning
+  # ---------------------------------------------------------------------------
+  celery_worker_scanning:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_celery_scanning
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      SECRET_KEY: ${SECRET_KEY}
+      NMAP_PATH: /usr/bin/nmap
+      NMAP_TIMEOUT: ${NMAP_TIMEOUT:-3600}
+    volumes:
+      - backend_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - nestsecure_network
+      - scan_network
+    command: celery -A app.workers.celery_app worker --loglevel=INFO --concurrency=2 --queues=scanning --hostname=scanning@%h
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker - General
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_worker
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      SECRET_KEY: ${SECRET_KEY}
+    volumes:
+      - backend_logs:/app/logs
+      - backend_reports:/app/reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nestsecure_network
+      - scan_network
+    command: celery -A app.workers.celery_app worker --loglevel=INFO --concurrency=2 --queues=reports,maintenance,enrichment,celery --hostname=default@%h
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # Celery Beat - Scheduler
+  # ---------------------------------------------------------------------------
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: nestsecure_beat
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nestsecure}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nestsecure_db}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - celery_beat_data:/app/celerybeat
+    depends_on:
+      - worker
+      - celery_worker_scanning
+    networks:
+      - nestsecure_network
+    command: celery -A app.workers.celery_app beat --loglevel=INFO --scheduler=celery.beat:PersistentScheduler --schedule=/app/celerybeat/celerybeat-schedule
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: nestsecure_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - nestsecure_network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+# =============================================================================
+# Redes
+# =============================================================================
+networks:
+  nestsecure_network:
+    driver: bridge
+    name: nestsecure_network
+  scan_network:
+    driver: bridge
+    name: nestsecure_scan_network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# =============================================================================
+# Volúmenes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: nestsecure_postgres_data
+  redis_data:
+    name: nestsecure_redis_data
+  backend_logs:
+    name: nestsecure_backend_logs
+  backend_reports:
+    name: nestsecure_backend_reports
+  celery_beat_data:
+    name: nestsecure_celery_beat_data

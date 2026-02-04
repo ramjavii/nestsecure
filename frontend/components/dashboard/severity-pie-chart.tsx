@@ -36,13 +36,13 @@ export function SeverityPieChart({ data, isLoading }: SeverityPieChartProps) {
     return <ChartSkeleton />;
   }
 
-  // Mock data for demo if no data provided
+  // Use provided data or zeros
   const stats = data || {
-    critical: 8,
-    high: 23,
-    medium: 45,
-    low: 67,
-    info: 12,
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    info: 0,
   };
 
   const chartData = Object.entries(stats).map(([key, value]) => ({
@@ -52,6 +52,28 @@ export function SeverityPieChart({ data, isLoading }: SeverityPieChartProps) {
   }));
 
   const total = chartData.reduce((sum, item) => sum + item.value, 0);
+
+  // Show empty state if no vulnerabilities
+  if (total === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Distribución por Severidad</CardTitle>
+          <CardDescription>
+            Total: 0 vulnerabilidades
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <p>Sin vulnerabilidades detectadas</p>
+              <p className="text-sm mt-1">Ejecuta escaneos para detectar vulnerabilidades</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

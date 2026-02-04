@@ -72,125 +72,7 @@ const statusOptions: { value: string; label: string }[] = [
   { value: 'active', label: 'Activo' },
   { value: 'inactive', label: 'Inactivo' },
   { value: 'maintenance', label: 'Mantenimiento' },
-];
-
-// Mock data for demo - Solo se usa cuando no hay conexión con el backend
-const ENABLE_MOCK_DATA = false; // Cambiar a true solo para desarrollo sin backend
-
-const mockAssets: Asset[] = ENABLE_MOCK_DATA ? [
-  {
-    id: '1',
-    ip_address: '192.168.1.10',
-    hostname: 'dc01.local',
-    mac_address: '00:1A:2B:3C:4D:5E',
-    operating_system: 'Windows Server 2019',
-    asset_type: 'server',
-    criticality: 'critical',
-    status: 'active',
-    risk_score: 85,
-    is_reachable: true,
-    tags: ['domain-controller', 'active-directory'],
-    last_seen_at: new Date(Date.now() - 300000).toISOString(),
-    created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    ip_address: '192.168.1.20',
-    hostname: 'web-prod-01',
-    mac_address: '00:1A:2B:3C:4D:5F',
-    operating_system: 'Ubuntu 22.04 LTS',
-    asset_type: 'server',
-    criticality: 'high',
-    status: 'active',
-    risk_score: 62,
-    is_reachable: true,
-    tags: ['web-server', 'nginx'],
-    last_seen_at: new Date(Date.now() - 600000).toISOString(),
-    created_at: new Date(Date.now() - 86400000 * 20).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    ip_address: '192.168.1.30',
-    hostname: 'db-master',
-    mac_address: '00:1A:2B:3C:4D:60',
-    operating_system: 'CentOS 8',
-    asset_type: 'server',
-    criticality: 'critical',
-    status: 'active',
-    risk_score: 45,
-    is_reachable: true,
-    tags: ['database', 'mysql'],
-    last_seen_at: new Date(Date.now() - 900000).toISOString(),
-    created_at: new Date(Date.now() - 86400000 * 25).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '4',
-    ip_address: '192.168.1.1',
-    hostname: 'router.local',
-    mac_address: '00:1A:2B:3C:4D:61',
-    operating_system: 'RouterOS 7.x',
-    asset_type: 'network_device',
-    criticality: 'high',
-    status: 'active',
-    risk_score: 30,
-    is_reachable: true,
-    tags: ['router', 'gateway'],
-    last_seen_at: new Date(Date.now() - 120000).toISOString(),
-    created_at: new Date(Date.now() - 86400000 * 60).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '5',
-    ip_address: '192.168.1.100',
-    hostname: 'workstation-01',
-    mac_address: '00:1A:2B:3C:4D:62',
-    operating_system: 'Windows 11 Pro',
-    asset_type: 'workstation',
-    criticality: 'medium',
-    status: 'active',
-    risk_score: 25,
-    is_reachable: true,
-    tags: ['workstation', 'developer'],
-    last_seen_at: new Date(Date.now() - 1800000).toISOString(),
-    created_at: new Date(Date.now() - 86400000 * 15).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '6',
-    ip_address: '192.168.1.200',
-    hostname: 'iot-sensor-01',
-    mac_address: '00:1A:2B:3C:4D:63',
-    operating_system: null,
-    asset_type: 'iot',
-    criticality: 'low',
-    status: 'inactive',
-    risk_score: 10,
-    is_reachable: false,
-    tags: ['iot', 'sensor'],
-    last_seen_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '7',
-    ip_address: '192.168.1.50',
-    hostname: 'backup-server',
-    mac_address: '00:1A:2B:3C:4D:64',
-    operating_system: 'Debian 11',
-    asset_type: 'server',
-    criticality: 'medium',
-    status: 'maintenance',
-    risk_score: 15,
-    is_reachable: true,
-    tags: ['backup', 'storage'],
-    last_seen_at: new Date(Date.now() - 7200000).toISOString(),
-    created_at: new Date(Date.now() - 86400000 * 40).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-] : [];
+];\n\n// Production mode - no mock data
 
 export default function AssetsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -212,8 +94,8 @@ export default function AssetsPage() {
   const deleteAsset = useDeleteAsset();
   const { toast } = useToast();
 
-  // Extraer items de la respuesta paginada, o usar mock data si está habilitado
-  const data = assetsResponse?.items || (ENABLE_MOCK_DATA ? mockAssets : []);
+  // Extraer items de la respuesta paginada
+  const data = assetsResponse?.items || [];
 
   const handleEditAsset = (asset: Asset) => {
     setEditModal({ open: true, asset });
