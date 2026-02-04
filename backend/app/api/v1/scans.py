@@ -12,6 +12,10 @@ Endpoints:
 - GET /scans/{id}/results: Obtener resultados
 - POST /scans/{id}/stop: Detener scan en ejecución
 - DELETE /scans/{id}: Eliminar scan
+- GET /scans/nmap/profiles: Listar perfiles Nmap disponibles
+- POST /scans/nmap/quick: Escaneo rápido con Nmap
+- POST /scans/nmap/full: Escaneo completo con Nmap
+- POST /scans/nmap/vulnerability: Escaneo de vulnerabilidades con Nmap
 """
 
 from datetime import datetime, timezone
@@ -29,6 +33,12 @@ from app.models.scan import Scan, ScanStatus, ScanType
 from app.models.vulnerability import Vulnerability
 from app.utils.logger import get_logger
 from app.workers.openvas_worker import openvas_full_scan, openvas_stop_scan, openvas_check_status
+from app.integrations.nmap import get_all_profiles as get_nmap_profiles, SCAN_PROFILES as NMAP_PROFILES
+from app.workers.nmap_worker import (
+    quick_scan as nmap_quick_scan_task,
+    full_scan as nmap_full_scan_task,
+    vulnerability_scan as nmap_vuln_scan_task,
+)
 
 logger = get_logger(__name__)
 
@@ -484,3 +494,235 @@ async def delete_scan(
     await db.commit()
     
     logger.info(f"Scan {scan_id} deleted by user {current_user.id}")
+
+
+# =============================================================================
+# NMAP ENDPOINTS - Perfiles y escaneos rápidos
+# =============================================================================
+
+class NmapProfileResponse(BaseModel):
+    """Perfil de escaneo Nmap."""
+    name: str = Field(..., description="Identificador del perfil")
+    display_name: str = Field(..., description="Nombre para mostrar")
+    description: str = Field(..., description="Descripción del perfil")
+    arguments: List[str] = Field(default_factory=list, description="Argumentos de Nmap")
+    intensity: str = Field(default="normal", description="Intensidad del escaneo")
+    estimated_duration: Optional[str] = Field(default=None, description="Duración estimada")
+    ports: Optional[str] = Field(default=None, description="Puertos a escanear")
+
+
+class NmapScanRequest(BaseModel):
+    """Request para escaneo Nmap."""
+    target: str = Field(..., min_length=1, max_length=2048)
+    scan_name: Optional[str] = Field(default=None, max_length=255)
+
+
+class NmapScanResponse(BaseModel):
+    """Response de escaneo Nmap."""
+    task_id: str
+    scan_id: Optional[str] = None
+    status: str
+    target: str
+    profile: str
+    message: Optional[str] = None
+
+
+@router.get(
+    "/nmap/profiles",
+    response_model=List[NmapProfileResponse],
+    summary="Listar perfiles Nmap",
+    description="Obtener lista de perfiles de escaneo Nmap disponibles."
+)
+async def list_nmap_profiles(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Listar perfiles de escaneo Nmap disponibles.
+    
+    Cada perfil tiene diferentes configuraciones:
+    - **quick**: Top 100 puertos (~2 min)
+    - **standard**: Top 1000 puertos (~5 min)
+    - **full**: Todos los puertos (~30+ min)
+    - **stealth**: Escaneo sigiloso
+    - **vulnerability**: Con scripts de vulnerabilidades
+    """
+    profiles = get_nmap_profiles()
+    
+    profile_responses = []
+    for profile in profiles:
+        profile_dict = profile.to_dict()
+        profile_responses.append(NmapProfileResponse(
+            name=profile_dict.get("name", "unknown"),
+            display_name=profile_dict.get("display_name", profile_dict.get("name", "Unknown").title()),
+            description=profile_dict.get("description", ""),
+            arguments=profile_dict.get("arguments", []),
+            intensity=profile_dict.get("intensity", "normal"),
+            estimated_duration=profile_dict.get("estimated_duration"),
+            ports=profile_dict.get("ports"),
+        ))
+    
+    return profile_responses
+
+
+@router.post(
+    "/nmap/quick",
+    response_model=NmapScanResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Escaneo rápido Nmap",
+    description="Escaneo rápido de los top 100 puertos (~2 minutos)."
+)
+async def nmap_quick_scan(
+    request: NmapScanRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Escaneo rápido con Nmap.
+    
+    Escanea los 100 puertos más comunes con detección de servicios básica.
+    Ideal para validaciones rápidas.
+    """
+    logger.info(f"Starting quick Nmap scan - target={request.target}")
+    
+    # Crear registro en DB
+    scan_id = str(uuid4()).replace("-", "")
+    scan = Scan(
+        id=scan_id,
+        organization_id=current_user.organization_id,
+        name=request.scan_name or f"Quick Nmap Scan - {request.target}",
+        description="Quick scan of top 100 ports",
+        scan_type=ScanType.PORT_SCAN.value,
+        targets=[request.target],
+        status=ScanStatus.QUEUED.value,
+        created_by_id=current_user.id,
+    )
+    
+    db.add(scan)
+    await db.commit()
+    
+    # Encolar tarea
+    task = nmap_quick_scan_task.delay(
+        target=request.target,
+        organization_id=str(current_user.organization_id),
+        scan_id=scan_id,
+    )
+    
+    scan.celery_task_id = task.id
+    await db.commit()
+    
+    return NmapScanResponse(
+        task_id=task.id,
+        scan_id=scan_id,
+        status="queued",
+        target=request.target,
+        profile="quick",
+        message="Quick scan queued successfully"
+    )
+
+
+@router.post(
+    "/nmap/full",
+    response_model=NmapScanResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Escaneo completo Nmap",
+    description="Escaneo de todos los 65535 puertos (puede tardar +30 min)."
+)
+async def nmap_full_scan(
+    request: NmapScanRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Escaneo completo con Nmap.
+    
+    Escanea todos los 65535 puertos TCP con detección de servicios.
+    ADVERTENCIA: Puede tardar más de 30 minutos.
+    """
+    logger.info(f"Starting full Nmap scan - target={request.target}")
+    
+    scan_id = str(uuid4()).replace("-", "")
+    scan = Scan(
+        id=scan_id,
+        organization_id=current_user.organization_id,
+        name=request.scan_name or f"Full Nmap Scan - {request.target}",
+        description="Full scan of all 65535 ports",
+        scan_type=ScanType.FULL.value,
+        targets=[request.target],
+        status=ScanStatus.QUEUED.value,
+        created_by_id=current_user.id,
+    )
+    
+    db.add(scan)
+    await db.commit()
+    
+    task = nmap_full_scan_task.delay(
+        target=request.target,
+        organization_id=str(current_user.organization_id),
+        scan_id=scan_id,
+    )
+    
+    scan.celery_task_id = task.id
+    await db.commit()
+    
+    return NmapScanResponse(
+        task_id=task.id,
+        scan_id=scan_id,
+        status="queued",
+        target=request.target,
+        profile="full",
+        message="Full scan queued successfully. This may take 30+ minutes."
+    )
+
+
+@router.post(
+    "/nmap/vulnerability",
+    response_model=NmapScanResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Escaneo de vulnerabilidades Nmap",
+    description="Escaneo con scripts NSE de detección de vulnerabilidades."
+)
+async def nmap_vulnerability_scan(
+    request: NmapScanRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Escaneo de vulnerabilidades con Nmap.
+    
+    Usa scripts NSE de la categoría 'vuln' para detectar vulnerabilidades conocidas.
+    Incluye checks de autenticación, exploits y malware.
+    """
+    logger.info(f"Starting vulnerability Nmap scan - target={request.target}")
+    
+    scan_id = str(uuid4()).replace("-", "")
+    scan = Scan(
+        id=scan_id,
+        organization_id=current_user.organization_id,
+        name=request.scan_name or f"Vulnerability Nmap Scan - {request.target}",
+        description="Vulnerability scan using NSE scripts",
+        scan_type=ScanType.VULNERABILITY.value,
+        targets=[request.target],
+        status=ScanStatus.QUEUED.value,
+        created_by_id=current_user.id,
+    )
+    
+    db.add(scan)
+    await db.commit()
+    
+    task = nmap_vuln_scan_task.delay(
+        target=request.target,
+        organization_id=str(current_user.organization_id),
+        scan_id=scan_id,
+    )
+    
+    scan.celery_task_id = task.id
+    await db.commit()
+    
+    return NmapScanResponse(
+        task_id=task.id,
+        scan_id=scan_id,
+        status="queued",
+        target=request.target,
+        profile="vulnerability",
+        message="Vulnerability scan queued successfully"
+    )

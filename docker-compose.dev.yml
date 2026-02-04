@@ -182,43 +182,45 @@ services:
   # GVM (Greenbone Vulnerability Manager) - OpenVAS
   # Escáner de vulnerabilidades empresarial
   # NOTA: GVM tarda 10-15 minutos en inicializar la primera vez
+  # TEMPORALMENTE DESHABILITADO - La imagen community-container ya no existe
+  # Para habilitar GVM, usar: greenbone/gvm:stable o implementar greenbone-feed-sync
   # ---------------------------------------------------------------------------
-  gvm:
-    image: greenbone/community-container:stable
-    container_name: nestsecure_gvm_dev
-    hostname: gvm
-    restart: unless-stopped
-    environment:
-      # Password del admin de GVM
-      PASSWORD: ${GVM_PASSWORD:-admin}
-      # Habilitar sync de NVTs de la comunidad
-      COMMUNITY_FEED_SYNC: "true"
-    ports:
-      # Web UI de GSA (Greenbone Security Assistant)
-      - "${GVM_WEB_PORT:-9392}:9392"
-      # API GMP
-      - "${GVM_PORT:-9390}:9390"
-    volumes:
-      # Persistencia de datos de GVM
-      - gvm_data:/var/lib/gvm
-      - gvm_scap:/var/lib/gvm/scap-data
-      - gvm_cert:/var/lib/gvm/cert-data
-      - openvas_plugins:/var/lib/openvas/plugins
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9392/ || exit 1"]
-      interval: 60s
-      timeout: 30s
-      retries: 5
-      start_period: 600s  # GVM tarda mucho en iniciar
-    networks:
-      - nestsecure_network
-    # Recursos recomendados para GVM
-    deploy:
-      resources:
-        limits:
-          memory: 6G
-        reservations:
-          memory: 4G
+  # gvm:
+  #   image: greenbone/gvm:stable
+  #   container_name: nestsecure_gvm_dev
+  #   hostname: gvm
+  #   restart: unless-stopped
+  #   environment:
+  #     # Password del admin de GVM
+  #     PASSWORD: ${GVM_PASSWORD:-admin}
+  #     # Habilitar sync de NVTs de la comunidad
+  #     COMMUNITY_FEED_SYNC: "true"
+  #   ports:
+  #     # Web UI de GSA (Greenbone Security Assistant)
+  #     - "${GVM_WEB_PORT:-9392}:9392"
+  #     # API GMP
+  #     - "${GVM_PORT:-9390}:9390"
+  #   volumes:
+  #     # Persistencia de datos de GVM
+  #     - gvm_data:/var/lib/gvm
+  #     - gvm_scap:/var/lib/gvm/scap-data
+  #     - gvm_cert:/var/lib/gvm/cert-data
+  #     - openvas_plugins:/var/lib/openvas/plugins
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -sf http://localhost:9392/ || exit 1"]
+  #     interval: 60s
+  #     timeout: 30s
+  #     retries: 5
+  #     start_period: 600s  # GVM tarda mucho en iniciar
+  #   networks:
+  #     - nestsecure_network
+  #   # Recursos recomendados para GVM
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 6G
+  #       reservations:
+  #         memory: 4G
 
 # =============================================================================
 # Redes

@@ -36,16 +36,16 @@ La Fase 2 transforma NESTSECURE de un backend funcional a un **sistema completo 
 - 🚀 **Production Deployment** - Día 16
 - ✅ **Testing E2E** - Día 17
 
-### Métricas Objetivo
+### Métricas Actualizadas (Post Día 11)
 
-| Métrica | Fase 1 | Objetivo Fase 2 |
-|---------|--------|-----------------|
-| Tests | 265 | 400+ |
-| Cobertura | ~85% | >90% |
-| Endpoints API | 64 | 80+ |
-| Scanners | 0 funcionales | 3 completos |
-| Frontend | No | Completo |
-| Deployment | Local | NUC Production |
+| Métrica | Fase 1 | Día 11 Actual | Objetivo Fase 2 |
+|---------|--------|---------------|-----------------|
+| Tests | 265 | 308 ✅ | 400+ |
+| Cobertura | ~85% | ~87% | >90% |
+| Endpoints API | 64 | 80+ ✅ | 80+ |
+| Scanners | 0 funcionales | 3 completos ✅ | 3 completos |
+| Frontend | No | No | Completo |
+| Deployment | Local | Local | NUC Production |
 
 ---
 
@@ -2326,15 +2326,15 @@ class NestSecureUser(HttpUser):
 - [x] Dashboard Stats (Día 4) - 6 endpoints
 - [x] Scans API (Día 8) - 7 endpoints
 - [x] OpenVAS Integration (Día 8) - ✅ Completo
-- [ ] Nmap API (Día 10) - 4 endpoints
-- [ ] Nuclei API (Día 11) - 4 endpoints
+- [x] Nmap API (Día 10) - 4 endpoints ✅ Completo
+- [x] Nuclei API (Día 11) - 8 endpoints ✅ Completo
 - [ ] CVE API (Día 5) - 6 endpoints
 - [ ] Vulnerabilities CRUD (Día 5) - 9 endpoints
 
 ### Scanners (3 integrados)
 - [x] OpenVAS/GVM (Día 8) - ✅ Completo
-- [ ] Nmap Enhanced (Día 10)
-- [ ] Nuclei (Día 11)
+- [x] Nmap Enhanced (Día 10) - ✅ Completo
+- [x] Nuclei (Día 11) - ✅ Completo
 
 ### Error Handling (Día 12)
 - [ ] Exception hierarchy (30+ clases)

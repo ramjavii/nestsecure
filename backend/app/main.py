@@ -428,6 +428,68 @@ async def _check_redis() -> dict:
         }
 
 
+@app.get(
+    "/health/services",
+    tags=["Health"],
+    summary="Estado de servicios externos",
+    description="Verifica el estado de los circuit breakers para servicios externos.",
+    response_model=dict,
+)
+async def health_services() -> dict:
+    """
+    Estado de servicios externos y circuit breakers.
+    
+    Retorna el estado de cada servicio externo (GVM, NVD, Nmap, Nuclei, etc.)
+    con métricas del circuit breaker correspondiente.
+    
+    Estados posibles:
+    - healthy: Circuit breaker cerrado, servicio funcionando
+    - degraded: Circuit breaker semi-abierto o con fallos recientes
+    - unavailable: Circuit breaker abierto, servicio no disponible
+    """
+    from app.core.circuit_breaker import get_all_circuit_breakers
+    
+    services = {}
+    
+    for breaker in get_all_circuit_breakers():
+        metrics = breaker.get_metrics()
+        
+        # Determinar estado del servicio
+        if metrics["state"] == "closed":
+            service_status = "healthy"
+        elif metrics["state"] == "half_open":
+            service_status = "degraded"
+        else:  # open
+            service_status = "unavailable"
+        
+        services[breaker.name.lower()] = {
+            "status": service_status,
+            "circuit_state": metrics["state"],
+            "failure_count": metrics["failure_count"],
+            "total_calls": metrics["total_calls"],
+            "total_failures": metrics["total_failures"],
+            "total_successes": metrics["total_successes"],
+            "state_changes": metrics["state_changes"],
+            "last_failure": metrics["last_failure"],
+            "last_success": metrics["last_success"],
+            "config": metrics["config"],
+        }
+    
+    # Estado global
+    overall_status = "healthy"
+    if any(s["status"] == "unavailable" for s in services.values()):
+        overall_status = "degraded"
+    elif any(s["status"] == "degraded" for s in services.values()):
+        overall_status = "degraded"
+    
+    return {
+        "status": overall_status,
+        "services": services,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "service_count": len(services),
+    }
+
+
 # =============================================================================
 # Para ejecutar directamente (desarrollo)
 # =============================================================================

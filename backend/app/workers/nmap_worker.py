@@ -1072,3 +1072,240 @@ def execute_scan_task(
         db.close()
     
     return result
+
+
+# =============================================================================
+# Quick Access Tasks - Wrappers convenientes
+# =============================================================================
+
+@shared_task(
+    name="app.workers.nmap_worker.quick_scan",
+    soft_time_limit=300,
+    time_limit=360,
+)
+def quick_scan(
+    target: str,
+    organization_id: str,
+    scan_id: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    Escaneo rápido de Nmap - Top 100 puertos.
+    
+    Usa el perfil 'quick' para escanear rápidamente los puertos más comunes.
+    Ideal para validaciones iniciales.
+    
+    Args:
+        target: IP o hostname a escanear
+        organization_id: ID de la organización
+        scan_id: ID del scan en DB (opcional)
+    
+    Returns:
+        dict con resultados del escaneo
+    """
+    logger.info(f"Quick scan iniciado - target={target}")
+    
+    result = {
+        "scan_type": "quick",
+        "target": target,
+        "organization_id": organization_id,
+        "services": [],
+        "host_info": {},
+        "errors": [],
+    }
+    
+    try:
+        # Ejecutar nmap con perfil rápido
+        xml_output = run_nmap(["-sV", "-F", "--version-light", target], timeout=240)
+        
+        # Parsear resultados
+        scan_data = parse_port_scan_xml(xml_output)
+        result["services"] = scan_data["services"]
+        result["host_info"] = scan_data["host_info"]
+        result["services_found"] = len(scan_data["services"])
+        result["success"] = True
+        
+        logger.info(f"Quick scan completado - {len(scan_data['services'])} servicios")
+        
+    except subprocess.TimeoutExpired:
+        result["errors"].append(f"Timeout escaneando {target}")
+        logger.error(f"Timeout en quick scan: {target}")
+        
+    except subprocess.CalledProcessError as e:
+        result["errors"].append(f"Nmap error: {e.stderr}")
+        logger.error(f"Nmap error en quick scan: {e}")
+        
+    except Exception as e:
+        result["errors"].append(str(e))
+        logger.exception(f"Error en quick scan: {e}")
+    
+    return result
+
+
+@shared_task(
+    name="app.workers.nmap_worker.full_scan",
+    soft_time_limit=3600,
+    time_limit=3900,
+)
+def full_scan(
+    target: str,
+    organization_id: str,
+    scan_id: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    Escaneo completo de Nmap - Todos los 65535 puertos.
+    
+    Usa el perfil 'full' para escanear todos los puertos TCP.
+    ADVERTENCIA: Puede tardar más de 1 hora.
+    
+    Args:
+        target: IP o hostname a escanear
+        organization_id: ID de la organización
+        scan_id: ID del scan en DB (opcional)
+    
+    Returns:
+        dict con resultados del escaneo
+    """
+    logger.info(f"Full scan iniciado - target={target}")
+    
+    result = {
+        "scan_type": "full",
+        "target": target,
+        "organization_id": organization_id,
+        "services": [],
+        "host_info": {},
+        "errors": [],
+    }
+    
+    try:
+        # Ejecutar nmap con perfil completo
+        xml_output = run_nmap([
+            "-sV", "-sC", "-p-", 
+            "--max-retries", "2",
+            "--min-rate", "1000",
+            target
+        ], timeout=3500)
+        
+        # Parsear resultados
+        scan_data = parse_port_scan_xml(xml_output)
+        result["services"] = scan_data["services"]
+        result["host_info"] = scan_data["host_info"]
+        result["services_found"] = len(scan_data["services"])
+        result["success"] = True
+        
+        logger.info(f"Full scan completado - {len(scan_data['services'])} servicios")
+        
+    except subprocess.TimeoutExpired:
+        result["errors"].append(f"Timeout escaneando {target}")
+        logger.error(f"Timeout en full scan: {target}")
+        
+    except subprocess.CalledProcessError as e:
+        result["errors"].append(f"Nmap error: {e.stderr}")
+        logger.error(f"Nmap error en full scan: {e}")
+        
+    except Exception as e:
+        result["errors"].append(str(e))
+        logger.exception(f"Error en full scan: {e}")
+    
+    return result
+
+
+@shared_task(
+    name="app.workers.nmap_worker.vulnerability_scan",
+    soft_time_limit=1800,
+    time_limit=2100,
+)
+def vulnerability_scan(
+    target: str,
+    organization_id: str,
+    scan_id: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    Escaneo de vulnerabilidades con Nmap NSE scripts.
+    
+    Usa scripts de detección de vulnerabilidades de Nmap.
+    Incluye: vuln, exploit, malware checks.
+    
+    Args:
+        target: IP o hostname a escanear
+        organization_id: ID de la organización
+        scan_id: ID del scan en DB (opcional)
+    
+    Returns:
+        dict con resultados del escaneo y vulnerabilidades
+    """
+    logger.info(f"Vulnerability scan iniciado - target={target}")
+    
+    result = {
+        "scan_type": "vulnerability",
+        "target": target,
+        "organization_id": organization_id,
+        "services": [],
+        "vulnerabilities": [],
+        "host_info": {},
+        "errors": [],
+    }
+    
+    try:
+        # Ejecutar nmap con scripts de vulnerabilidades
+        xml_output = run_nmap([
+            "-sV", "-sC",
+            "--script", "vuln,exploit,auth",
+            "-Pn",  # Skip host discovery
+            target
+        ], timeout=1700)
+        
+        # Parsear resultados
+        scan_data = parse_port_scan_xml(xml_output)
+        result["services"] = scan_data["services"]
+        result["host_info"] = scan_data["host_info"]
+        result["services_found"] = len(scan_data["services"])
+        
+        # Extraer vulnerabilidades de los scripts
+        # Los scripts de vuln suelen estar en el output del servicio
+        for service in scan_data["services"]:
+            scripts = service.get("scripts", [])
+            for script in scripts:
+                if "vuln" in script.get("id", "").lower():
+                    result["vulnerabilities"].append({
+                        "port": service["port"],
+                        "service": service["service_name"],
+                        "script_id": script.get("id"),
+                        "output": script.get("output", "")[:500],
+                    })
+        
+        result["vulnerabilities_found"] = len(result["vulnerabilities"])
+        result["success"] = True
+        
+        logger.info(
+            f"Vulnerability scan completado - "
+            f"{len(scan_data['services'])} servicios, "
+            f"{len(result['vulnerabilities'])} vulns"
+        )
+        
+    except subprocess.TimeoutExpired:
+        result["errors"].append(f"Timeout escaneando {target}")
+        logger.error(f"Timeout en vulnerability scan: {target}")
+        
+    except subprocess.CalledProcessError as e:
+        result["errors"].append(f"Nmap error: {e.stderr}")
+        logger.error(f"Nmap error en vulnerability scan: {e}")
+        
+    except Exception as e:
+        result["errors"].append(str(e))
+        logger.exception(f"Error en vulnerability scan: {e}")
+    
+    return result
+
+
+# =============================================================================
+# Export
+# =============================================================================
+__all__ = [
+    "discovery_scan",
+    "port_scan",
+    "scan_network",
+    "execute_scan_task",
+    "quick_scan",
+    "full_scan",
+    "vulnerability_scan",
+]
