@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,9 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useCreateAsset } from '@/hooks/use-assets';
+import { useCreateAsset, useUpdateAsset } from '@/hooks/use-assets';
 import { useToast } from '@/hooks/use-toast';
-import type { AssetType, Criticality } from '@/types';
+import type { Asset, AssetType, Criticality } from '@/types';
 
 const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
 const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
@@ -45,6 +46,8 @@ type AssetFormData = z.infer<typeof assetSchema>;
 interface AssetFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  asset?: Asset; // Si se proporciona, es modo edición
+  mode?: 'create' | 'edit';
 }
 
 const assetTypes: { value: AssetType; label: string }[] = [
@@ -62,8 +65,10 @@ const criticalities: { value: Criticality; label: string }[] = [
   { value: 'low', label: 'Bajo' },
 ];
 
-export function AssetFormModal({ open, onOpenChange }: AssetFormModalProps) {
+export function AssetFormModal({ open, onOpenChange, asset, mode = 'create' }: AssetFormModalProps) {
+  const isEdit = mode === 'edit' && asset;
   const createAsset = useCreateAsset();
+  const updateAsset = useUpdateAsset();
   const { toast } = useToast();
 
   const {
@@ -81,12 +86,39 @@ export function AssetFormModal({ open, onOpenChange }: AssetFormModalProps) {
     },
   });
 
+  // Cargar datos del asset en modo edición
+  useEffect(() => {
+    if (isEdit && asset) {
+      reset({
+        ip_address: asset.ip_address,
+        hostname: asset.hostname || '',
+        mac_address: asset.mac_address || '',
+        operating_system: asset.operating_system || '',
+        asset_type: asset.asset_type,
+        criticality: asset.criticality,
+        description: asset.description || '',
+      });
+    } else if (!isEdit) {
+      reset({
+        ip_address: '',
+        hostname: '',
+        mac_address: '',
+        operating_system: '',
+        asset_type: 'server',
+        criticality: 'medium',
+        description: '',
+      });
+    }
+  }, [isEdit, asset, reset]);
+
   const assetType = watch('asset_type');
   const criticality = watch('criticality');
 
+  const isPending = createAsset.isPending || updateAsset.isPending;
+
   const onSubmit = async (data: AssetFormData) => {
     try {
-      await createAsset.mutateAsync({
+      const payload = {
         ip_address: data.ip_address,
         hostname: data.hostname || undefined,
         mac_address: data.mac_address || undefined,
@@ -94,19 +126,28 @@ export function AssetFormModal({ open, onOpenChange }: AssetFormModalProps) {
         asset_type: data.asset_type,
         criticality: data.criticality,
         description: data.description || undefined,
-      });
+      };
 
-      toast({
-        title: 'Asset creado',
-        description: 'El asset ha sido agregado correctamente.',
-      });
+      if (isEdit && asset) {
+        await updateAsset.mutateAsync({ id: asset.id, payload });
+        toast({
+          title: 'Asset actualizado',
+          description: 'El asset ha sido actualizado correctamente.',
+        });
+      } else {
+        await createAsset.mutateAsync(payload);
+        toast({
+          title: 'Asset creado',
+          description: 'El asset ha sido agregado correctamente.',
+        });
+      }
 
       reset();
       onOpenChange(false);
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'No se pudo crear el asset',
+        description: error instanceof Error ? error.message : `No se pudo ${isEdit ? 'actualizar' : 'crear'} el asset`,
         variant: 'destructive',
       });
     }
@@ -116,9 +157,12 @@ export function AssetFormModal({ open, onOpenChange }: AssetFormModalProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Agregar Asset</DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar Asset' : 'Agregar Asset'}</DialogTitle>
           <DialogDescription>
-            Agrega un nuevo asset a tu inventario de infraestructura
+            {isEdit 
+              ? 'Modifica la información del asset seleccionado'
+              : 'Agrega un nuevo asset a tu inventario de infraestructura'
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -224,15 +268,15 @@ export function AssetFormModal({ open, onOpenChange }: AssetFormModalProps) {
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={createAsset.isPending}
+              disabled={isPending}
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={createAsset.isPending}>
-              {createAsset.isPending && (
+            <Button type="submit" disabled={isPending}>
+              {isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Agregar Asset
+              {isEdit ? 'Guardar cambios' : 'Agregar Asset'}
             </Button>
           </DialogFooter>
         </form>

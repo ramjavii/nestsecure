@@ -68,8 +68,10 @@ const typeOptions: { value: string; label: string }[] = [
   { value: 'full', label: 'Completo' },
 ];
 
-// Mock data for demo
-const mockScans: Scan[] = [
+// Mock data for demo - Solo se usa cuando no hay conexión con el backend
+const ENABLE_MOCK_DATA = false; // Cambiar a true solo para desarrollo sin backend
+
+const mockScans: Scan[] = ENABLE_MOCK_DATA ? [
   {
     id: '1',
     name: 'Escaneo Red Interna',
@@ -175,7 +177,7 @@ const mockScans: Scan[] = [
     created_at: new Date(Date.now() - 172800000).toISOString(),
     updated_at: new Date().toISOString(),
   },
-];
+] : [];
 
 export default function ScansPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -189,13 +191,13 @@ export default function ScansPage() {
     scanName: string;
   }>({ open: false, type: 'stop', scanId: '', scanName: '' });
 
-  const { data: scans, isLoading } = useScans();
+  const { data: scans, isLoading, error } = useScans();
   const stopScan = useStopScan();
   const deleteScan = useDeleteScan();
   const { toast } = useToast();
 
-  // Use mock data if no data from API
-  const data = scans || mockScans;
+  // Usar datos del backend, o mock data solo si está habilitado
+  const data = scans || (ENABLE_MOCK_DATA ? mockScans : []);
 
   const filteredScans = useMemo(() => {
     return data.filter((scan) => {

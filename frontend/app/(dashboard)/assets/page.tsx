@@ -74,8 +74,10 @@ const statusOptions: { value: string; label: string }[] = [
   { value: 'maintenance', label: 'Mantenimiento' },
 ];
 
-// Mock data for demo
-const mockAssets: Asset[] = [
+// Mock data for demo - Solo se usa cuando no hay conexión con el backend
+const ENABLE_MOCK_DATA = false; // Cambiar a true solo para desarrollo sin backend
+
+const mockAssets: Asset[] = ENABLE_MOCK_DATA ? [
   {
     id: '1',
     ip_address: '192.168.1.10',
@@ -188,10 +190,14 @@ const mockAssets: Asset[] = [
     created_at: new Date(Date.now() - 86400000 * 40).toISOString(),
     updated_at: new Date().toISOString(),
   },
-];
+] : [];
 
 export default function AssetsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editModal, setEditModal] = useState<{
+    open: boolean;
+    asset: Asset | null;
+  }>({ open: false, asset: null });
   const [typeFilter, setTypeFilter] = useState('all');
   const [criticalityFilter, setCriticalityFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -202,12 +208,16 @@ export default function AssetsPage() {
     assetName: string;
   }>({ open: false, assetId: '', assetName: '' });
 
-  const { data: assets, isLoading } = useAssets();
+  const { data: assets, isLoading, error } = useAssets();
   const deleteAsset = useDeleteAsset();
   const { toast } = useToast();
 
-  // Use mock data if no data from API
-  const data = assets || mockAssets;
+  // Usar datos del backend, o mock data solo si está habilitado
+  const data = assets || (ENABLE_MOCK_DATA ? mockAssets : []);
+
+  const handleEditAsset = (asset: Asset) => {
+    setEditModal({ open: true, asset });
+  };
 
   const filteredAssets = useMemo(() => {
     return data.filter((asset) => {
@@ -397,7 +407,7 @@ export default function AssetsPage() {
                               Ver detalles
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditAsset(asset)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
@@ -428,6 +438,14 @@ export default function AssetsPage() {
 
       {/* Modals */}
       <AssetFormModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+      
+      {/* Edit Modal */}
+      <AssetFormModal 
+        open={editModal.open} 
+        onOpenChange={(open) => setEditModal({ ...editModal, open })}
+        asset={editModal.asset || undefined}
+        mode="edit"
+      />
 
       <ConfirmDialog
         open={deleteDialog.open}

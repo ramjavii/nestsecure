@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { ConnectionStatus } from '@/components/shared/connection-status';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 
@@ -110,8 +111,11 @@ export function Topbar({ onMenuClick, sidebarCollapsed }: TopbarProps) {
           </nav>
         </div>
 
-        {/* Right section - Search + Notifications + User */}
+        {/* Right section - Connection + Search + Notifications + User */}
         <div className="flex items-center gap-2 lg:gap-4">
+          {/* Connection Status */}
+          <ConnectionStatus className="hidden sm:flex" />
+
           {/* Search */}
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
