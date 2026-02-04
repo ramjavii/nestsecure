@@ -68,6 +68,10 @@ docker-up: ## Levanta todos los servicios con Docker
 	@echo "$(GREEN)Levantando servicios...$(NC)"
 	$(DOCKER_COMPOSE_DEV) up -d
 
+docker-up-build: ## Levanta servicios reconstruyendo imágenes
+	@echo "$(GREEN)Levantando servicios (rebuild)...$(NC)"
+	$(DOCKER_COMPOSE_DEV) up -d --build
+
 docker-down: ## Detiene todos los servicios
 	@echo "$(GREEN)Deteniendo servicios...$(NC)"
 	$(DOCKER_COMPOSE_DEV) down
@@ -78,19 +82,33 @@ docker-logs: ## Muestra logs de todos los servicios
 docker-logs-backend: ## Muestra logs solo del backend
 	$(DOCKER_COMPOSE_DEV) logs -f backend
 
+docker-logs-frontend: ## Muestra logs solo del frontend
+	$(DOCKER_COMPOSE_DEV) logs -f frontend
+
 docker-build: ## Reconstruye las imágenes Docker
 	@echo "$(GREEN)Reconstruyendo imágenes...$(NC)"
 	$(DOCKER_COMPOSE_DEV) build
 
+docker-build-frontend: ## Reconstruye solo la imagen del frontend
+	@echo "$(GREEN)Reconstruyendo imagen del frontend...$(NC)"
+	$(DOCKER_COMPOSE_DEV) build frontend
+
 docker-restart: ## Reinicia todos los servicios
 	@echo "$(GREEN)Reiniciando servicios...$(NC)"
 	$(DOCKER_COMPOSE_DEV) restart
+
+docker-restart-frontend: ## Reinicia solo el frontend
+	@echo "$(GREEN)Reiniciando frontend...$(NC)"
+	$(DOCKER_COMPOSE_DEV) restart frontend
 
 docker-ps: ## Muestra estado de los contenedores
 	$(DOCKER_COMPOSE_DEV) ps
 
 docker-shell-backend: ## Abre shell en el contenedor del backend
 	$(DOCKER_COMPOSE_DEV) exec backend /bin/bash
+
+docker-shell-frontend: ## Abre shell en el contenedor del frontend
+	$(DOCKER_COMPOSE_DEV) exec frontend /bin/sh
 
 docker-shell-db: ## Abre psql en el contenedor de PostgreSQL
 	$(DOCKER_COMPOSE_DEV) exec postgres psql -U nestsecure -d nestsecure_db

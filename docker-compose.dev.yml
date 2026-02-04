@@ -89,7 +89,7 @@ services:
       
       # API
       API_V1_PREFIX: /api/v1
-      BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://localhost:5173"]'
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://localhost:5173","http://frontend:3000","http://127.0.0.1:3000"]'
       
       # Rate Limiting
       RATE_LIMIT_REQUESTS: 100
@@ -179,6 +179,52 @@ services:
     command: celery -A app.workers.celery_app beat --loglevel=DEBUG
 
   # ---------------------------------------------------------------------------
+  # Frontend Next.js
+  # Interfaz de usuario del sistema NESTSECURE
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: nestsecure_frontend_dev
+    restart: unless-stopped
+    environment:
+      # Node.js
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: "1"
+      
+      # API Backend (nombre del servicio en Docker network)
+      NEXT_PUBLIC_API_URL: http://backend:8000/api/v1
+      NEXT_PUBLIC_WS_URL: ws://backend:8000/ws
+      
+      # Para que el browser pueda acceder al backend (desde host)
+      NEXT_PUBLIC_BROWSER_API_URL: http://localhost:8000/api/v1
+      
+      # Hot-reload en Docker
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      # Código fuente con hot-reload
+      - ./frontend:/app
+      # Excluir node_modules y .next del mount
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - nestsecure_network
+
+  # ---------------------------------------------------------------------------
   # GVM (Greenbone Vulnerability Manager) - OpenVAS
   # Escáner de vulnerabilidades empresarial
   # NOTA: GVM tarda 10-15 minutos en inicializar la primera vez
@@ -240,6 +286,10 @@ volumes:
     name: nestsecure_redis_data_dev
   backend_cache:
     name: nestsecure_backend_cache_dev
+  frontend_node_modules:
+    name: nestsecure_frontend_node_modules_dev
+  frontend_next:
+    name: nestsecure_frontend_next_dev
   gvm_data:
     name: nestsecure_gvm_data_dev
   gvm_scap:
