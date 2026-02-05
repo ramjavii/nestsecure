@@ -20,9 +20,15 @@ Esta carpeta contiene la documentación diaria del progreso del desarrollo del p
 | [Día 12](DIA_12_COMPLETADO.md) | 2026-02-04 | Error Handling & Resilience | 368 tests | ✅ Completado |
 | [Día 13](DIA_13_COMPLETADO.md) | 2026-02-04 | Frontend Docker Deployment | 368 tests | ✅ Completado |
 | [Día 14](DIA_14_COMPLETADO.md) | 2026-02-04 | Assets + Scans UI Real-time | 368 tests | ✅ Completado |
-| Día 15 | Por implementar | Dashboard + Vulnerabilities UI | - | 📝 Próximo |
-| Día 16 | Por implementar | Docker Production + NUC Deploy | - | 📝 Planeado |
-| Día 17 | Por implementar | Testing E2E + Validation | - | 📝 Planeado |
+| [Día 15](DIA_15_COMPLETADO.md) | 2026-02-04 | Dashboard + Vulnerabilities UI | 400+ tests | ✅ Completado |
+| [Día 16](DIA_16_COMPLETADO.md) | 2026-02-04 | Docker Production + NUC Deploy | 400+ tests | ✅ Completado |
+| [Día 17](DIA_17_COMPLETADO.md) | 2026-02-04 | Testing E2E + Validation | 400+ tests | ✅ Completado |
+| **FASE 3** | 2026-02-05+ | **[Ver Plan Completo](FASE_03_PLAN_COMPLETO.md)** | - | � En Progreso |
+| [Día 18](DIA_18_COMPLETADO.md) | 2026-02-04 | CVE Types, API Client, Hooks | - | ✅ Completado |
+| Día 19 | Por implementar | CVE Pages (Search + Detail) | - | 📝 Próximo |
+| Día 20-21 | Por implementar | Nuclei + ZAP Integration | - | 📝 Planeado |
+| Día 22-24 | Por implementar | Correlation Engine | - | 📝 Planeado |
+| Día 25-27 | Por implementar | Dashboard Avanzado + Hardening | - | 📝 Planeado |
 
 ## 📊 Resumen de Progreso
 
