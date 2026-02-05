@@ -250,23 +250,32 @@ validateTarget("192.168.1.0/24");
 
 ### Tests Unitarios (`test_network_utils.py`)
 
-**Clases de tests:**
+**89 tests pasando** organizados en las siguientes clases:
 
 | Clase | Tests | Descripción |
 |-------|-------|-------------|
 | `TestIsPrivateIP` | 15 | Verificación de IPs privadas |
 | `TestIsPrivateNetwork` | 12 | Verificación de redes CIDR |
 | `TestValidateScanTarget` | 20 | Función principal de validación |
-| `TestValidateMultipleTargets` | 5 | Validación de múltiples targets |
-| `TestGetNetworkInfo` | 6 | Información de redes |
-| `TestSecurityScenarios` | 8 | Escenarios de seguridad críticos |
-| `TestRealWorldUseCases` | 5 | Casos de uso reales |
+| `TestValidateMultipleTargets` | 8 | Validación de múltiples targets |
+| `TestGetNetworkInfo` | 10 | Información de redes |
+| `TestSecurityScenarios` | 12 | Escenarios de seguridad críticos |
+| `TestRealWorldUseCases` | 8 | Casos de uso reales |
+| `TestEdgeCases` | 4 | Casos límite |
 
 **Ejecutar tests:**
 
 ```bash
 cd backend
+source ../.venv/bin/activate
+
+# Tests específicos de network_utils
 pytest app/tests/test_utils/test_network_utils.py -v
+# ✅ 89 passed in 1.60s
+
+# Todos los tests del backend
+pytest app/tests/ -v
+# ✅ 283 passed
 ```
 
 **Escenarios de seguridad testeados:**
@@ -311,23 +320,50 @@ La validación se implementa en **3 capas**:
 | Archivos nuevos | 4 |
 | Archivos modificados | 5 |
 | Líneas de código nuevas | ~1,600 |
-| Tests nuevos | 71 |
+| Tests network_utils | **89 pasando** |
+| Tests API totales | **170 pasando** |
+| Tests config | **24 pasando** |
+| Tests E2E frontend | **73 disponibles** |
+| **Total tests backend** | **283 pasando** |
 | Endpoints nuevos | 5 |
 | Tiempo de implementación | ~4 horas |
+
+### Resultados de Tests
+
+```bash
+# Tests de validación de red
+pytest app/tests/test_utils/test_network_utils.py -v
+# ✅ 89 passed in 1.60s
+
+# Tests de API completos  
+pytest app/tests/test_api/ -v
+# ✅ 170 passed in 99.52s
+
+# Tests de configuración
+pytest app/tests/test_config.py -v
+# ✅ 24 passed in 1.28s
+
+# Tests E2E Frontend (Playwright)
+pnpm exec playwright test --list | grep chromium | wc -l
+# 73 tests disponibles
+```
 
 ---
 
 ## ✅ CHECKLIST COMPLETADO
 
 - [x] Crear `network_utils.py` con funciones de validación
-- [x] Crear tests unitarios completos (~70 tests)
+- [x] Crear tests unitarios completos (89 tests pasando)
 - [x] Crear API endpoints `/network/*`
 - [x] Integrar validación en `create_scan`
 - [x] Integrar validación en todas las tareas de nmap_worker
 - [x] Crear hook `use-network.ts` para frontend
 - [x] Actualizar `ScanFormModal` con validación en tiempo real
 - [x] Agregar métodos de API en `lib/api.ts`
+- [x] Ejecutar todos los tests del backend (283 pasando)
+- [x] Verificar tests E2E del frontend (73 disponibles)
 - [x] Documentar en `DIA_20_COMPLETADO.md`
+- [x] Commit y push a origin/main
 
 ---
 
