@@ -580,7 +580,7 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="font-mono text-sm">{vuln.host}</TableCell>
+                          <TableCell className="font-mono text-sm">{vuln.host || '-'}</TableCell>
                           <TableCell>
                             {vuln.port ? (
                               <Badge variant="secondary">{vuln.port}</Badge>

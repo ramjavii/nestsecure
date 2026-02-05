@@ -127,11 +127,12 @@ class VulnerabilitySummary(BaseModel):
     """Resumen de vulnerabilidad."""
     id: str
     name: str
-    severity: float
+    severity: str  # Severity level as string (critical, high, medium, low, info)
+    cvss_score: Optional[float] = None  # Numeric CVSS score
     severity_class: str
-    host: str
-    port: Optional[int]
-    cve_ids: List[str]
+    host: Optional[str] = None
+    port: Optional[int] = None
+    cve_ids: List[str] = []
 
 
 class ScanResultsResponse(BaseModel):
@@ -478,6 +479,7 @@ async def get_scan_results(
             id=v.id,
             name=v.name,
             severity=v.severity,
+            cvss_score=v.cvss_score,
             severity_class=v.severity_class,
             host=v.host,
             port=v.port,

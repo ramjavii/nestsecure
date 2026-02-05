@@ -158,9 +158,10 @@ export interface Vulnerability {
 export interface ScanVulnerabilitySummary {
   id: string;
   name: string;
-  severity: number;
+  severity: string;  // Severity level as string (critical, high, medium, low, info)
+  cvss_score: number | null;  // Numeric CVSS score
   severity_class: Severity;
-  host: string;
+  host: string | null;
   port: number | null;
   cve_ids: string[];
 }
