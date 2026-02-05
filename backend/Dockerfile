@@ -39,9 +39,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     git \
+    unzip \
     # Limpieza
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# =============================================================================
+# Instalar Nuclei Scanner
+# =============================================================================
+# Nuclei - Fast vulnerability scanner based on templates
+# https://github.com/projectdiscovery/nuclei
+# =============================================================================
+ARG NUCLEI_VERSION=3.3.7
+ENV NUCLEI_VERSION=${NUCLEI_VERSION}
+
+# Descargar e instalar Nuclei
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then NUCLEI_ARCH="linux_amd64"; \
+    elif [ "$ARCH" = "arm64" ]; then NUCLEI_ARCH="linux_arm64"; \
+    else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
+    wget -q "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_${NUCLEI_ARCH}.zip" -O /tmp/nuclei.zip && \
+    unzip -q /tmp/nuclei.zip -d /tmp/nuclei && \
+    mv /tmp/nuclei/nuclei /usr/local/bin/nuclei && \
+    chmod +x /usr/local/bin/nuclei && \
+    rm -rf /tmp/nuclei /tmp/nuclei.zip && \
+    nuclei -version
+
+# Crear directorio para templates de Nuclei
+RUN mkdir -p /opt/nuclei-templates && \
+    chown nestsecure:nestsecure /opt/nuclei-templates
+
+# Variable de entorno para templates
+ENV NUCLEI_TEMPLATES_PATH=/opt/nuclei-templates
 
 # Crear usuario no-root para seguridad
 RUN groupadd --gid 1000 nestsecure \
@@ -120,8 +149,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     shared-mime-info \
     nmap \
     curl \
+    wget \
+    unzip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Instalar Nuclei en producción
+ARG NUCLEI_VERSION=3.3.7
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then NUCLEI_ARCH="linux_amd64"; \
+    elif [ "$ARCH" = "arm64" ]; then NUCLEI_ARCH="linux_arm64"; \
+    else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
+    wget -q "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_${NUCLEI_ARCH}.zip" -O /tmp/nuclei.zip && \
+    unzip -q /tmp/nuclei.zip -d /tmp/nuclei && \
+    mv /tmp/nuclei/nuclei /usr/local/bin/nuclei && \
+    chmod +x /usr/local/bin/nuclei && \
+    rm -rf /tmp/nuclei /tmp/nuclei.zip
+
+# Crear directorio para templates
+RUN mkdir -p /opt/nuclei-templates
+ENV NUCLEI_TEMPLATES_PATH=/opt/nuclei-templates
 
 # Crear usuario no-root
 RUN groupadd --gid 1000 nestsecure \
@@ -136,9 +183,10 @@ WORKDIR /app
 # Copiar código fuente
 COPY --chown=nestsecure:nestsecure . .
 
-# Crear directorios necesarios
+# Crear directorios necesarios (incluyendo nuclei templates)
 RUN mkdir -p /app/logs /app/reports /app/templates \
-    && chown -R nestsecure:nestsecure /app
+    && chown -R nestsecure:nestsecure /app \
+    && chown -R nestsecure:nestsecure /opt/nuclei-templates
 
 # Cambiar a usuario no-root
 USER nestsecure
