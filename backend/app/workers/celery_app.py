@@ -31,6 +31,7 @@ celery_app = Celery(
         "app.workers.nuclei_worker",
         "app.workers.zap_worker",
         "app.workers.cve_worker",
+        "app.workers.correlation_worker",
         "app.workers.report_worker",
         "app.workers.cleanup_worker",
     ],

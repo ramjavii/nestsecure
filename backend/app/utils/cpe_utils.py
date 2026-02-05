@@ -397,6 +397,203 @@ def build_cpe_search_query(
 
 
 # =============================================================================
+# Mapeo de productos Nmap a CPE vendors/products
+# =============================================================================
+
+# Mapeo de productos detectados por Nmap a vendors CPE
+NMAP_TO_CPE_VENDOR: Dict[str, str] = {
+    # Web Servers
+    "apache httpd": "apache",
+    "apache": "apache",
+    "nginx": "nginx",
+    "nginx/": "nginx",
+    "microsoft iis": "microsoft",
+    "microsoft-iis": "microsoft",
+    "lighttpd": "lighttpd",
+    "tomcat": "apache",
+    "jetty": "eclipse",
+    
+    # SSH
+    "openssh": "openbsd",
+    "dropbear": "dropbear",
+    
+    # Databases
+    "mysql": "oracle",
+    "mariadb": "mariadb",
+    "postgresql": "postgresql",
+    "mongodb": "mongodb",
+    "redis": "redis",
+    "memcached": "memcached",
+    "microsoft sql server": "microsoft",
+    "elasticsearch": "elastic",
+    
+    # Mail
+    "postfix": "postfix",
+    "exim": "exim",
+    "dovecot": "dovecot",
+    
+    # FTP
+    "vsftpd": "vsftpd_project",
+    "proftpd": "proftpd",
+    "pure-ftpd": "pureftpd",
+    
+    # DNS
+    "bind": "isc",
+    "dnsmasq": "thekelleys",
+    
+    # Other
+    "samba": "samba",
+    "openssl": "openssl",
+    "php": "php",
+}
+
+# Mapeo de productos detectados por Nmap a nombres CPE
+NMAP_TO_CPE_PRODUCT: Dict[str, str] = {
+    # Web Servers
+    "apache httpd": "http_server",
+    "apache": "http_server",
+    "nginx": "nginx",
+    "nginx/": "nginx",
+    "microsoft iis": "internet_information_services",
+    "microsoft-iis": "internet_information_services",
+    "lighttpd": "lighttpd",
+    "tomcat": "tomcat",
+    "jetty": "jetty",
+    
+    # SSH
+    "openssh": "openssh",
+    "dropbear": "dropbear_ssh",
+    
+    # Databases
+    "mysql": "mysql",
+    "mariadb": "mariadb",
+    "postgresql": "postgresql",
+    "mongodb": "mongodb",
+    "redis": "redis",
+    "memcached": "memcached",
+    "microsoft sql server": "sql_server",
+    "elasticsearch": "elasticsearch",
+    
+    # Mail
+    "postfix": "postfix",
+    "exim": "exim",
+    "dovecot": "dovecot",
+    
+    # FTP
+    "vsftpd": "vsftpd",
+    "proftpd": "proftpd",
+    "pure-ftpd": "pure-ftpd",
+    
+    # DNS
+    "bind": "bind",
+    "dnsmasq": "dnsmasq",
+    
+    # Other
+    "samba": "samba",
+    "openssl": "openssl",
+    "php": "php",
+}
+
+
+def build_cpe_from_service_info(
+    service_name: Optional[str] = None,
+    product: Optional[str] = None,
+    version: Optional[str] = None,
+    existing_cpe: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Construye un CPE desde información de un servicio detectado por Nmap.
+    
+    Si el servicio ya tiene un CPE detectado, lo normaliza y retorna.
+    Si no, intenta construirlo desde product/version.
+    
+    Args:
+        service_name: Nombre del servicio (http, ssh, etc.)
+        product: Producto detectado (Apache httpd, OpenSSH, etc.)
+        version: Versión detectada
+        existing_cpe: CPE ya detectado por Nmap (opcional)
+    
+    Returns:
+        String CPE o None si no se puede construir
+    
+    Example:
+        >>> build_cpe_from_service_info(product="Apache httpd", version="2.4.49")
+        'cpe:2.3:a:apache:http_server:2.4.49:*:*:*:*:*:*:*'
+    """
+    # Si ya hay un CPE, normalizarlo
+    if existing_cpe:
+        return normalize_cpe(existing_cpe)
+    
+    # Necesitamos al menos product para construir
+    if not product:
+        return None
+    
+    product_lower = product.lower().strip()
+    
+    # Buscar vendor y product en mapeos
+    vendor = None
+    cpe_product = None
+    
+    for key in NMAP_TO_CPE_VENDOR:
+        if key in product_lower or product_lower in key:
+            vendor = NMAP_TO_CPE_VENDOR[key]
+            cpe_product = NMAP_TO_CPE_PRODUCT.get(key)
+            break
+    
+    if not vendor or not cpe_product:
+        return None
+    
+    # Normalizar versión
+    normalized_version = "*"
+    if version:
+        # Extraer solo números y puntos
+        match = re.match(r'^v?(\d+(?:\.\d+)*)', version.lower())
+        if match:
+            normalized_version = match.group(1)
+    
+    # Crear CPE
+    cpe = create_cpe(
+        part="a",
+        vendor=vendor,
+        product=cpe_product,
+        version=normalized_version,
+    )
+    
+    return cpe.to_uri()
+
+
+def get_cpe_confidence(
+    cpe_source: str,
+    has_version: bool,
+) -> int:
+    """
+    Calcula la confianza de un CPE basado en su origen.
+    
+    Args:
+        cpe_source: Origen del CPE ("nmap", "constructed", etc.)
+        has_version: Si tiene versión específica
+    
+    Returns:
+        Puntuación de confianza 0-100
+    """
+    base_confidence = {
+        "nmap_cpe": 95,        # CPE detectado directamente por Nmap
+        "nmap_script": 90,     # CPE de scripts Nmap
+        "constructed": 75,     # Construido desde product/version
+        "banner": 60,          # Extraído del banner
+        "guess": 40,           # Adivinanza basada en puerto
+    }
+    
+    confidence = base_confidence.get(cpe_source, 50)
+    
+    # Penalizar si no hay versión
+    if not has_version:
+        confidence -= 20
+    
+    return max(0, min(100, confidence))
+
+
+# =============================================================================
 # Exportar
 # =============================================================================
 __all__ = [
@@ -411,4 +608,8 @@ __all__ = [
     "normalize_cpe",
     "cpe_to_human_readable",
     "build_cpe_search_query",
+    "build_cpe_from_service_info",
+    "get_cpe_confidence",
+    "NMAP_TO_CPE_VENDOR",
+    "NMAP_TO_CPE_PRODUCT",
 ]
