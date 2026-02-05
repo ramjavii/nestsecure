@@ -16,10 +16,18 @@ import {
   StopCircle,
   RefreshCw,
   Terminal,
+  ChevronDown,
+  ChevronRight,
+  Shield,
+  ExternalLink,
+  AlertCircle,
+  CheckCircle2,
+  Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -28,6 +36,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -36,9 +49,10 @@ import { ProgressBar } from '@/components/shared/progress-bar';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { TableSkeleton } from '@/components/shared/loading-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
-import { useScan, useStopScan } from '@/hooks/use-scans';
+import { useScan, useStopScan, useScanResults, useScanHosts, useScanLogs } from '@/hooks/use-scans';
 import { useToast } from '@/hooks/use-toast';
-import type { Scan, Vulnerability, Asset } from '@/types';
+import type { Scan, Vulnerability, Asset, ScanHost, ScanLogEntry } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface ScanDetailPageProps {
   params: Promise<{ id: string }>;
@@ -48,12 +62,12 @@ interface ScanDetailPageProps {
 const emptyScan: Scan = {
   id: '',
   name: 'Cargando...',
-  description: null,
-  scan_type: 'quick',
+  description: undefined,
+  scan_type: 'discovery',
   status: 'queued',
   progress: 0,
   targets: [],
-  port_range: null,
+  port_range: undefined,
   total_hosts_scanned: 0,
   total_hosts_up: 0,
   total_services_found: 0,
@@ -68,6 +82,127 @@ const emptyScan: Scan = {
   updated_at: new Date().toISOString(),
 };
 
+// Helper function to map severity class to display
+function getSeverityFromClass(severityClass: string): 'critical' | 'high' | 'medium' | 'low' | 'info' {
+  const mapping: Record<string, 'critical' | 'high' | 'medium' | 'low' | 'info'> = {
+    critical: 'critical',
+    high: 'high',
+    medium: 'medium',
+    low: 'low',
+    info: 'info',
+  };
+  return mapping[severityClass] || 'info';
+}
+
+// Log level icon component
+function LogLevelIcon({ level }: { level: string }) {
+  switch (level) {
+    case 'error':
+      return <AlertCircle className="h-4 w-4 text-red-500" />;
+    case 'warning':
+      return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+    case 'success':
+      return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    case 'debug':
+      return <Terminal className="h-4 w-4 text-gray-400" />;
+    default:
+      return <Info className="h-4 w-4 text-blue-500" />;
+  }
+}
+
+// Host row component with expandable services
+function HostRow({ host }: { host: ScanHost }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <TableRow className="cursor-pointer hover:bg-muted/50">
+        <TableCell>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="p-0 h-auto">
+              {isOpen ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </TableCell>
+        <TableCell className="font-mono font-medium">{host.ip_address}</TableCell>
+        <TableCell>{host.hostname || '-'}</TableCell>
+        <TableCell>{host.operating_system || 'Desconocido'}</TableCell>
+        <TableCell>
+          <Badge variant="secondary">{host.services_count}</Badge>
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{host.vulnerabilities_count}</span>
+            {host.vuln_critical > 0 && (
+              <Badge variant="destructive" className="text-xs">
+                {host.vuln_critical} críticas
+              </Badge>
+            )}
+            {host.vuln_high > 0 && (
+              <Badge className="bg-orange-500 text-xs">
+                {host.vuln_high} altas
+              </Badge>
+            )}
+          </div>
+        </TableCell>
+        <TableCell>
+          <StatusBadge status={host.status} />
+        </TableCell>
+      </TableRow>
+      <CollapsibleContent asChild>
+        <TableRow className="bg-muted/30">
+          <TableCell colSpan={7} className="p-0">
+            <div className="p-4 space-y-2">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Network className="h-4 w-4" />
+                Servicios Detectados ({host.services.length})
+              </h4>
+              {host.services.length > 0 ? (
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {host.services.map((service) => (
+                    <div
+                      key={service.id}
+                      className="flex items-center gap-3 p-2 rounded-md bg-background border"
+                    >
+                      <div className={cn(
+                        "h-2 w-2 rounded-full",
+                        service.state === 'open' ? 'bg-green-500' :
+                        service.state === 'filtered' ? 'bg-yellow-500' : 'bg-red-500'
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-medium">
+                            {service.port}/{service.protocol}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {service.state}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {service.service_name || 'Desconocido'}
+                          {service.version && ` (${service.version})`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No se detectaron servicios en este host
+                </p>
+              )}
+            </div>
+          </TableCell>
+        </TableRow>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export default function ScanDetailPage({ params }: ScanDetailPageProps) {
   const { id } = use(params);
   const router = useRouter();
@@ -75,27 +210,14 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
   const stopScan = useStopScan();
   const { toast } = useToast();
   const [showStopDialog, setShowStopDialog] = useState(false);
-  const [pollingProgress, setPollingProgress] = useState(0);
 
   // Use API data with empty defaults
   const displayScan = scan || emptyScan;
 
-  // Simulate polling for running scans
-  useEffect(() => {
-    if (displayScan.status === 'running') {
-      const interval = setInterval(() => {
-        setPollingProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            return 100;
-          }
-          return prev + Math.random() * 2;
-        });
-      }, 2000);
-
-      return () => clearInterval(interval);
-    }
-  }, [displayScan.status]);
+  // Fetch results, hosts, and logs with polling based on scan status
+  const { data: resultsData, isLoading: loadingResults } = useScanResults(id, displayScan.status);
+  const { data: hostsData, isLoading: loadingHosts } = useScanHosts(id, displayScan.status);
+  const { data: logsData, isLoading: loadingLogs } = useScanLogs(id, displayScan.status);
 
   const handleStopScan = async () => {
     try {
@@ -126,7 +248,7 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
     );
   }
 
-  const currentProgress = displayScan.status === 'running' ? pollingProgress : displayScan.progress;
+  const currentProgress = displayScan.progress;
 
   return (
     <div className="space-y-6">
@@ -184,7 +306,9 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
             <CardContent className="pt-6">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Progreso del escaneo</span>
+                  <span className="text-muted-foreground">
+                    {logsData?.current_phase || 'Preparando escaneo...'}
+                  </span>
                   <span className="font-medium">{Math.round(currentProgress)}%</span>
                 </div>
                 <ProgressBar
@@ -209,7 +333,7 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
         />
         <StatCard
           title="Hosts Activos"
-          value={displayScan.total_hosts_up}
+          value={hostsData?.total_hosts || displayScan.total_hosts_up}
           description={`de ${displayScan.total_hosts_scanned} escaneados`}
           icon={Server}
           variant="info"
@@ -222,16 +346,20 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
         />
         <StatCard
           title="Vulnerabilidades"
-          value={displayScan.total_vulnerabilities}
-          description={`${displayScan.vuln_critical} críticas`}
+          value={resultsData?.total_vulnerabilities || displayScan.total_vulnerabilities}
+          description={`${resultsData?.summary?.critical || displayScan.vuln_critical} críticas`}
           icon={AlertTriangle}
           variant={displayScan.vuln_critical > 0 ? 'danger' : 'warning'}
         />
         <StatCard
           title="Duración"
           value={
-            displayScan.started_at
+            displayScan.duration_seconds
+              ? `${Math.floor(displayScan.duration_seconds / 60)}m ${displayScan.duration_seconds % 60}s`
+              : displayScan.started_at && displayScan.status === 'running'
               ? formatDistanceToNow(new Date(displayScan.started_at), { locale: es })
+              : displayScan.started_at && displayScan.completed_at
+              ? `${Math.floor((new Date(displayScan.completed_at).getTime() - new Date(displayScan.started_at).getTime()) / 60000)}m`
               : '-'
           }
           icon={Clock}
@@ -243,9 +371,30 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
       <Tabs defaultValue="summary" className="space-y-4">
         <TabsList>
           <TabsTrigger value="summary">Resumen</TabsTrigger>
-          <TabsTrigger value="hosts">Hosts</TabsTrigger>
-          <TabsTrigger value="vulnerabilities">Vulnerabilidades</TabsTrigger>
-          <TabsTrigger value="logs">Logs</TabsTrigger>
+          <TabsTrigger value="hosts">
+            Hosts
+            {hostsData?.total_hosts ? (
+              <Badge variant="secondary" className="ml-2">
+                {hostsData.total_hosts}
+              </Badge>
+            ) : null}
+          </TabsTrigger>
+          <TabsTrigger value="vulnerabilities">
+            Vulnerabilidades
+            {resultsData?.total_vulnerabilities ? (
+              <Badge variant="secondary" className="ml-2">
+                {resultsData.total_vulnerabilities}
+              </Badge>
+            ) : null}
+          </TabsTrigger>
+          <TabsTrigger value="logs">
+            Logs
+            {logsData?.logs?.length ? (
+              <Badge variant="secondary" className="ml-2">
+                {logsData.logs.length}
+              </Badge>
+            ) : null}
+          </TabsTrigger>
         </TabsList>
 
         {/* Summary Tab */}
@@ -303,10 +452,11 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
               <CardContent>
                 <div className="space-y-3">
                   {[
-                    { label: 'Críticas', value: displayScan.vuln_critical, color: 'bg-severity-critical' },
-                    { label: 'Altas', value: displayScan.vuln_high, color: 'bg-severity-high' },
-                    { label: 'Medias', value: displayScan.vuln_medium, color: 'bg-severity-medium' },
-                    { label: 'Bajas', value: displayScan.vuln_low, color: 'bg-severity-low' },
+                    { label: 'Críticas', value: resultsData?.summary?.critical ?? displayScan.vuln_critical, color: 'bg-red-500' },
+                    { label: 'Altas', value: resultsData?.summary?.high ?? displayScan.vuln_high, color: 'bg-orange-500' },
+                    { label: 'Medias', value: resultsData?.summary?.medium ?? displayScan.vuln_medium, color: 'bg-yellow-500' },
+                    { label: 'Bajas', value: resultsData?.summary?.low ?? displayScan.vuln_low, color: 'bg-blue-500' },
+                    { label: 'Info', value: resultsData?.summary?.info ?? 0, color: 'bg-gray-400' },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -326,17 +476,49 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
         <TabsContent value="hosts">
           <Card>
             <CardHeader>
-              <CardTitle>Hosts Descubiertos</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Server className="h-5 w-5" />
+                Hosts Descubiertos
+              </CardTitle>
               <CardDescription>
-                {displayScan.total_hosts_up} hosts activos encontrados
+                {hostsData?.total_hosts || 0} hosts encontrados en este escaneo
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={Server}
-                title="Hosts en desarrollo"
-                description="La visualización detallada de hosts estará disponible próximamente. Los hosts descubiertos se muestran en las estadísticas generales."
-              />
+              {loadingHosts ? (
+                <TableSkeleton columns={7} rows={5} />
+              ) : hostsData?.hosts && hostsData.hosts.length > 0 ? (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10"></TableHead>
+                        <TableHead>IP</TableHead>
+                        <TableHead>Hostname</TableHead>
+                        <TableHead>Sistema Operativo</TableHead>
+                        <TableHead>Servicios</TableHead>
+                        <TableHead>Vulnerabilidades</TableHead>
+                        <TableHead>Estado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {hostsData.hosts.map((host) => (
+                        <HostRow key={host.id} host={host} />
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Server}
+                  title="Sin hosts descubiertos"
+                  description={
+                    displayScan.status === 'running' || displayScan.status === 'queued'
+                      ? 'El escaneo está en progreso. Los hosts aparecerán aquí cuando sean descubiertos.'
+                      : 'No se encontraron hosts activos en los targets especificados.'
+                  }
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -345,17 +527,90 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
         <TabsContent value="vulnerabilities">
           <Card>
             <CardHeader>
-              <CardTitle>Vulnerabilidades Detectadas</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Vulnerabilidades Detectadas
+              </CardTitle>
               <CardDescription>
-                {displayScan.total_vulnerabilities} vulnerabilidades encontradas en este escaneo
+                {resultsData?.total_vulnerabilities || 0} vulnerabilidades encontradas
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={AlertTriangle}
-                title="Sin vulnerabilidades"
-                description="No se detectaron vulnerabilidades en este escaneo o los detalles estarán disponibles al completarse."
-              />
+              {loadingResults ? (
+                <TableSkeleton columns={6} rows={5} />
+              ) : resultsData?.vulnerabilities && resultsData.vulnerabilities.length > 0 ? (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">Severidad</TableHead>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>CVE</TableHead>
+                        <TableHead>Host</TableHead>
+                        <TableHead>Puerto</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {resultsData.vulnerabilities.map((vuln) => (
+                        <TableRow key={vuln.id}>
+                          <TableCell>
+                            <SeverityBadge severity={getSeverityFromClass(vuln.severity_class)} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-md">
+                              <p className="font-medium truncate">{vuln.name}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {vuln.cve_ids.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {vuln.cve_ids.slice(0, 2).map((cve) => (
+                                  <Badge key={cve} variant="outline" className="text-xs font-mono">
+                                    {cve}
+                                  </Badge>
+                                ))}
+                                {vuln.cve_ids.length > 2 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    +{vuln.cve_ids.length - 2}
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">{vuln.host}</TableCell>
+                          <TableCell>
+                            {vuln.port ? (
+                              <Badge variant="secondary">{vuln.port}</Badge>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link href={`/vulnerabilities/${vuln.id}`}>
+                                <ExternalLink className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Shield}
+                  title="Sin vulnerabilidades detectadas"
+                  description={
+                    displayScan.status === 'running' || displayScan.status === 'queued'
+                      ? 'El escaneo está en progreso. Las vulnerabilidades aparecerán aquí cuando sean detectadas.'
+                      : 'No se detectaron vulnerabilidades en este escaneo. ¡Buen trabajo!'
+                  }
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -369,20 +624,57 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
                 Logs del Escaneo
               </CardTitle>
               <CardDescription>
-                Registro de actividad en tiempo real
+                Registro de actividad {displayScan.status === 'running' ? 'en tiempo real' : 'del escaneo'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="bg-background border rounded-lg p-4 font-mono text-sm max-h-96 overflow-y-auto space-y-1">
-                <div className="text-muted-foreground text-center py-8">
-                  Los logs en tiempo real estarán disponibles próximamente.
+              {loadingLogs ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-8 bg-muted animate-pulse rounded" />
+                  ))}
                 </div>
-                {displayScan.status === 'running' && (
-                  <div className="flex gap-2 animate-pulse justify-center">
-                    <span className="text-primary">Escaneando...</span>
-                  </div>
-                )}
-              </div>
+              ) : logsData?.logs && logsData.logs.length > 0 ? (
+                <div className="bg-zinc-950 rounded-lg p-4 font-mono text-sm max-h-[500px] overflow-y-auto space-y-2">
+                  {logsData.logs.map((log, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 py-1 border-b border-zinc-800 last:border-0"
+                    >
+                      <LogLevelIcon level={log.level} />
+                      <span className="text-zinc-500 text-xs whitespace-nowrap">
+                        {log.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss', { locale: es }) : '--:--:--'}
+                      </span>
+                      <span className={cn(
+                        "flex-1",
+                        log.level === 'error' && 'text-red-400',
+                        log.level === 'warning' && 'text-yellow-400',
+                        log.level === 'success' && 'text-green-400',
+                        log.level === 'debug' && 'text-zinc-500',
+                        log.level === 'info' && 'text-zinc-300',
+                      )}>
+                        {log.message}
+                      </span>
+                    </div>
+                  ))}
+                  {displayScan.status === 'running' && (
+                    <div className="flex items-center gap-2 pt-2 text-primary animate-pulse">
+                      <div className="h-2 w-2 rounded-full bg-primary animate-ping" />
+                      <span>Escaneando...</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Terminal}
+                  title="Sin logs disponibles"
+                  description={
+                    displayScan.status === 'queued'
+                      ? 'Los logs aparecerán cuando el escaneo comience.'
+                      : 'No hay logs registrados para este escaneo.'
+                  }
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>

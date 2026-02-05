@@ -22,11 +22,13 @@ from app.api.v1.assets import router as assets_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.cve import router as cve_router
 from app.api.v1.dashboard import router as dashboard_router
+from app.api.v1.network import router as network_router
 from app.api.v1.nuclei import router as nuclei_router
 from app.api.v1.organizations import router as organizations_router
 from app.api.v1.scans import router as scans_router
 from app.api.v1.services import router as services_router
 from app.api.v1.users import router as users_router
+from app.api.v1.vulnerabilities import router as vulnerabilities_router
 
 # Router principal de la API v1
 api_router = APIRouter()
@@ -84,6 +86,18 @@ api_router.include_router(
     nuclei_router,
     prefix="/nuclei",
     tags=["Nuclei"],
+)
+
+api_router.include_router(
+    network_router,
+    prefix="/network",
+    tags=["Network"],
+)
+
+api_router.include_router(
+    vulnerabilities_router,
+    prefix="/vulnerabilities",
+    tags=["Vulnerabilities"],
 )
 
 # Health check para la API (útil para load balancers)

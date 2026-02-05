@@ -28,6 +28,8 @@ from app.db.session import SessionLocal
 from app.models.asset import Asset, AssetStatus
 from app.models.scan import Scan, ScanStatus, ScanType
 from app.models.service import Service, ServiceProtocol, ServiceState
+from app.models.vulnerability import Vulnerability, VulnerabilitySeverity
+from app.utils.network_utils import is_private_ip, is_private_network
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -42,6 +44,356 @@ def get_sync_db() -> Session:
     Celery workers usan conexiones síncronas.
     """
     return SessionLocal()
+
+
+def update_scan_status_in_db(
+    scan_id: str,
+    status: str,
+    results: dict = None,
+    error_message: str = None,
+) -> None:
+    """
+    Actualiza el status de un scan en la base de datos.
+    
+    Además de actualizar el status, guarda los assets y servicios
+    encontrados en las tablas correspondientes.
+    
+    Args:
+        scan_id: ID del scan a actualizar
+        status: Nuevo status ('completed', 'failed', 'running', etc.)
+        results: Resultados del scan (opcional)
+        error_message: Mensaje de error si falló (opcional)
+    """
+    db = get_sync_db()
+    try:
+        scan = db.execute(
+            select(Scan).where(Scan.id == scan_id)
+        ).scalar_one_or_none()
+        
+        if scan:
+            scan.status = status
+            now = datetime.now(timezone.utc)
+            
+            if status == "completed":
+                scan.completed_at = now
+                # Calcular duración si hay started_at
+                if scan.started_at:
+                    duration = (now - scan.started_at).total_seconds()
+                    scan.duration_seconds = int(duration)
+            
+            if status == "running" and not scan.started_at:
+                scan.started_at = now
+            
+            if results:
+                scan.results = results
+                
+                # Actualizar contadores del scan
+                services_found = results.get("services_found", 0) or len(results.get("services", []))
+                hosts_found = results.get("hosts_found", 0)
+                vulns_found = results.get("vulnerabilities_found", 0) or len(results.get("vulnerabilities", []))
+                
+                if services_found > 0:
+                    scan.total_services_found = services_found
+                if hosts_found > 0:
+                    scan.total_hosts_up = hosts_found
+                    scan.total_hosts_scanned = hosts_found
+                if vulns_found > 0:
+                    scan.total_vulnerabilities = vulns_found
+                
+                # Guardar duración del escaneo si está en los resultados
+                nmap_duration = results.get("duration_seconds")
+                if nmap_duration and status == "completed":
+                    scan.duration_seconds = int(nmap_duration)
+                
+                # Guardar servicios en la BD si hay
+                services = results.get("services", [])
+                if services and scan.organization_id:
+                    _save_services_from_results(db, scan, services, now)
+                
+                # Guardar vulnerabilidades en la BD si hay
+                vulnerabilities = results.get("vulnerabilities", [])
+                if vulnerabilities and scan.organization_id:
+                    _save_vulnerabilities_from_results(db, scan, vulnerabilities, now)
+            
+            if error_message:
+                scan.error_message = error_message
+            
+            db.commit()
+            logger.info(f"Scan {scan_id} status updated to '{status}'")
+        else:
+            logger.warning(f"Scan {scan_id} not found in DB")
+    except Exception as e:
+        logger.error(f"Error updating scan {scan_id} status: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _save_services_from_results(db, scan, services: list, now: datetime) -> None:
+    """
+    Guarda los servicios encontrados en la BD.
+    
+    Crea o actualiza Assets y Services basándose en los resultados del scan.
+    """
+    for svc in services:
+        try:
+            port = svc.get("port")
+            if not port:
+                continue
+                
+            # Obtener o crear asset basado en el target del scan
+            target_ip = scan.targets[0] if scan.targets else None
+            if not target_ip:
+                continue
+            
+            # Buscar asset existente
+            asset = db.execute(
+                select(Asset).where(
+                    Asset.organization_id == scan.organization_id,
+                    Asset.ip_address == target_ip,
+                )
+            ).scalar_one_or_none()
+            
+            if not asset:
+                # Crear nuevo asset
+                asset = Asset(
+                    organization_id=scan.organization_id,
+                    ip_address=target_ip,
+                    hostname=svc.get("hostname"),
+                    status=AssetStatus.ACTIVE.value,
+                    is_reachable=True,
+                    first_seen=now,
+                    last_seen=now,
+                    last_scanned=now,
+                    risk_score=0.0,
+                )
+                db.add(asset)
+                db.flush()  # Para obtener el ID
+            else:
+                asset.last_seen = now
+                asset.last_scanned = now
+                asset.is_reachable = True
+            
+            # Buscar servicio existente
+            existing_svc = db.execute(
+                select(Service).where(
+                    Service.asset_id == asset.id,
+                    Service.port == port,
+                    Service.protocol == svc.get("protocol", "tcp"),
+                )
+            ).scalar_one_or_none()
+            
+            if not existing_svc:
+                # Crear nuevo servicio
+                new_service = Service(
+                    asset_id=asset.id,
+                    port=port,
+                    protocol=svc.get("protocol", "tcp"),
+                    state=ServiceState.OPEN.value,
+                    service_name=svc.get("service_name") or svc.get("name"),
+                    product=svc.get("product"),
+                    version=svc.get("version"),
+                    cpe=svc.get("cpe"),
+                    banner=svc.get("banner"),
+                    detection_method="nmap",
+                    confidence=90,
+                )
+                db.add(new_service)
+            else:
+                # Actualizar servicio existente
+                existing_svc.state = ServiceState.OPEN.value
+                existing_svc.service_name = svc.get("service_name") or svc.get("name") or existing_svc.service_name
+                existing_svc.product = svc.get("product") or existing_svc.product
+                existing_svc.version = svc.get("version") or existing_svc.version
+                
+        except Exception as e:
+            logger.warning(f"Error saving service {svc}: {e}")
+            continue
+
+
+def parse_vulners_output(script_output: str) -> list[dict]:
+    """
+    Parsea la salida del script vulners de nmap para extraer CVEs.
+    
+    La salida de vulners tiene formato:
+      CVE-2023-38408	9.8	https://vulners.com/cve/CVE-2023-38408
+      CVE-2020-15778	7.8	https://vulners.com/cve/CVE-2020-15778
+    
+    Args:
+        script_output: Output del script vulners
+        
+    Returns:
+        Lista de dicts con cve_id, cvss_score, url
+    """
+    import re
+    
+    vulnerabilities = []
+    
+    # Patrón para CVE con CVSS score
+    cve_pattern = re.compile(
+        r'(CVE-\d{4}-\d+)\s+(\d+\.?\d*)',
+        re.IGNORECASE
+    )
+    
+    for match in cve_pattern.finditer(script_output):
+        cve_id = match.group(1).upper()
+        try:
+            cvss_score = float(match.group(2))
+        except ValueError:
+            cvss_score = 0.0
+        
+        # Determinar severidad basada en CVSS
+        if cvss_score >= 9.0:
+            severity = VulnerabilitySeverity.CRITICAL.value
+        elif cvss_score >= 7.0:
+            severity = VulnerabilitySeverity.HIGH.value
+        elif cvss_score >= 4.0:
+            severity = VulnerabilitySeverity.MEDIUM.value
+        elif cvss_score > 0:
+            severity = VulnerabilitySeverity.LOW.value
+        else:
+            severity = VulnerabilitySeverity.INFO.value
+        
+        vulnerabilities.append({
+            "cve_id": cve_id,
+            "cvss_score": cvss_score,
+            "severity": severity,
+            "url": f"https://nvd.nist.gov/vuln/detail/{cve_id}",
+        })
+    
+    return vulnerabilities
+
+
+def _save_vulnerabilities_from_results(
+    db, 
+    scan, 
+    vulnerabilities: list, 
+    now: datetime
+) -> int:
+    """
+    Guarda las vulnerabilidades encontradas en la BD.
+    
+    Args:
+        db: Sesión de BD
+        scan: Objeto Scan
+        vulnerabilities: Lista de vulnerabilidades a guardar
+        now: Timestamp actual
+        
+    Returns:
+        Número de vulnerabilidades guardadas
+    """
+    saved_count = 0
+    
+    for vuln in vulnerabilities:
+        try:
+            # Obtener asset asociado
+            target_ip = scan.targets[0] if scan.targets else None
+            if not target_ip:
+                continue
+            
+            asset = db.execute(
+                select(Asset).where(
+                    Asset.organization_id == scan.organization_id,
+                    Asset.ip_address == target_ip,
+                )
+            ).scalar_one_or_none()
+            
+            if not asset:
+                logger.warning(f"No asset found for {target_ip}")
+                continue
+            
+            cve_id = vuln.get("cve_id")
+            port = vuln.get("port")
+            service_name = vuln.get("service", "Unknown Service")
+            
+            # Buscar service_id si tenemos puerto
+            service_id = None
+            if port:
+                service = db.execute(
+                    select(Service).where(
+                        Service.asset_id == asset.id,
+                        Service.port == port,
+                    )
+                ).scalar_one_or_none()
+                if service:
+                    service_id = service.id
+            
+            # Verificar si ya existe esta vulnerabilidad para este scan/asset
+            existing = db.execute(
+                select(Vulnerability).where(
+                    Vulnerability.scan_id == scan.id,
+                    Vulnerability.asset_id == asset.id,
+                    Vulnerability.cve_id == cve_id,
+                )
+            ).scalar_one_or_none()
+            
+            if existing:
+                continue
+            
+            # Crear nueva vulnerabilidad
+            new_vuln = Vulnerability(
+                organization_id=scan.organization_id,
+                asset_id=asset.id,
+                service_id=service_id,
+                scan_id=scan.id,
+                cve_id=cve_id,
+                name=f"{cve_id} - {service_name}",
+                description=vuln.get("description", f"Vulnerabilidad {cve_id} detectada por nmap vulners script"),
+                severity=vuln.get("severity", VulnerabilitySeverity.MEDIUM.value),
+                cvss_score=vuln.get("cvss_score"),
+                status="open",
+                host=str(asset.ip_address),
+                port=port,
+                references=[vuln.get("url")] if vuln.get("url") else [],
+            )
+            db.add(new_vuln)
+            saved_count += 1
+            
+        except Exception as e:
+            logger.warning(f"Error saving vulnerability {vuln}: {e}")
+            continue
+    
+    if saved_count > 0:
+        logger.info(f"Saved {saved_count} vulnerabilities for scan {scan.id}")
+    
+    return saved_count
+
+
+def validate_target_security(target: str) -> bool:
+    """
+    Valida que un target sea seguro para escanear (solo redes privadas).
+    
+    SEGURIDAD: Esta es una segunda capa de validación después del API.
+    Previene escaneos a IPs públicas incluso si el API fue bypaseado.
+    
+    Args:
+        target: IP o CIDR a validar
+    
+    Returns:
+        True si el target es seguro (red privada)
+    
+    Logs:
+        WARNING si se detecta intento de escaneo a IP pública
+    """
+    target = target.strip()
+    
+    # Si es CIDR
+    if '/' in target:
+        if not is_private_network(target):
+            logger.warning(
+                f"SECURITY: Blocked scan to public network: {target}"
+            )
+            return False
+        return True
+    
+    # Si es IP individual
+    if not is_private_ip(target):
+        logger.warning(
+            f"SECURITY: Blocked scan to public IP: {target}"
+        )
+        return False
+    
+    return True
 
 
 def run_nmap(args: list[str], timeout: int | None = None) -> str:
@@ -83,6 +435,30 @@ def run_nmap(args: list[str], timeout: int | None = None) -> str:
         )
     
     return result.stdout
+
+
+def parse_nmap_duration(xml_output: str) -> Optional[float]:
+    """
+    Extrae la duración del escaneo del XML de nmap.
+    
+    El XML contiene: <finished time="..." timestr="..." elapsed="123.45"/>
+    
+    Args:
+        xml_output: Salida XML de nmap
+    
+    Returns:
+        Duración en segundos o None si no se puede parsear
+    """
+    try:
+        root = ET.fromstring(xml_output)
+        finished = root.find(".//finished")
+        if finished is not None:
+            elapsed = finished.get("elapsed")
+            if elapsed:
+                return float(elapsed)
+    except (ET.ParseError, ValueError) as e:
+        logger.warning(f"Could not parse nmap duration: {e}")
+    return None
 
 
 def parse_discovery_xml(xml_output: str) -> list[dict[str, Any]]:
@@ -229,11 +605,20 @@ def parse_port_scan_xml(xml_output: str) -> dict[str, Any]:
                 if cpe_elem is not None:
                     service_data["cpe"] = cpe_elem.text
             
-            # Scripts (para banners, etc.)
+            # Scripts (para banners, vulners, etc.)
+            service_data["scripts"] = []
             for script in port.findall("script"):
                 script_id = script.get("id")
+                script_output = script.get("output", "")
+                
                 if script_id == "banner":
-                    service_data["banner"] = script.get("output", "")[:1000]  # Limitar banner
+                    service_data["banner"] = script_output[:1000]  # Limitar banner
+                
+                # Guardar todos los scripts para análisis de vulnerabilidades
+                service_data["scripts"].append({
+                    "id": script_id,
+                    "output": script_output[:2000],  # Limitar output
+                })
             
             if service_data["port"] > 0:
                 result["services"].append(service_data)
@@ -255,11 +640,13 @@ def discovery_scan(
     self,
     target: str,
     organization_id: str,
+    scan_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     Descubrimiento de hosts en una red.
     
     Ejecuta un ping scan (-sn) para encontrar hosts activos.
+    SEGURIDAD: Solo permite escaneos a redes privadas (RFC 1918).
     
     Args:
         target: Target a escanear (ej: "192.168.1.0/24", "10.0.0.1-10")
@@ -280,6 +667,17 @@ def discovery_scan(
         "errors": [],
     }
     
+    # SEGURIDAD: Validar que el target sea una red privada
+    # Esto es una segunda capa de protección después del API
+    for single_target in target.split(","):
+        if not validate_target_security(single_target.strip()):
+            error_msg = f"Security: Target '{single_target}' is not a private network"
+            logger.error(error_msg)
+            result["errors"].append(error_msg)
+            if scan_id:
+                update_scan_status_in_db(scan_id, ScanStatus.FAILED.value, error_message=error_msg)
+            return result
+    
     try:
         # Ejecutar Nmap discovery
         xml_output = run_nmap(["-sn", target])
@@ -287,6 +685,11 @@ def discovery_scan(
         # Parsear resultados
         hosts = parse_discovery_xml(xml_output)
         result["hosts_found"] = len(hosts)
+        
+        # Parsear duración del escaneo
+        duration = parse_nmap_duration(xml_output)
+        if duration:
+            result["duration_seconds"] = duration
         
         # Guardar en base de datos
         db = get_sync_db()
@@ -346,19 +749,29 @@ def discovery_scan(
             f"{result['hosts_created']} creados, {result['hosts_updated']} actualizados"
         )
         
+        # Actualizar status del scan en DB
+        if scan_id:
+            update_scan_status_in_db(scan_id, "completed", results=result)
+        
     except subprocess.TimeoutExpired:
         result["errors"].append(f"Timeout escaneando {target}")
         logger.error(f"Timeout en discovery scan: {target}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, "failed", error_message=f"Timeout escaneando {target}")
         raise self.retry(exc=Exception("Nmap timeout"))
     
     except subprocess.CalledProcessError as e:
         result["errors"].append(f"Error en Nmap: {e.stderr}")
         logger.error(f"Error en Nmap: {e}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, "failed", error_message=str(e))
         raise
     
     except Exception as e:
         result["errors"].append(str(e))
         logger.exception(f"Error en discovery scan: {e}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, "failed", error_message=str(e))
         raise
     
     return result
@@ -1093,6 +1506,7 @@ def quick_scan(
     
     Usa el perfil 'quick' para escanear rápidamente los puertos más comunes.
     Ideal para validaciones iniciales.
+    SEGURIDAD: Solo permite escaneos a redes privadas (RFC 1918).
     
     Args:
         target: IP o hostname a escanear
@@ -1113,6 +1527,16 @@ def quick_scan(
         "errors": [],
     }
     
+    # SEGURIDAD: Validar que el target sea una red privada
+    for single_target in target.split(","):
+        if not validate_target_security(single_target.strip()):
+            error_msg = f"Security: Target '{single_target}' is not a private network"
+            logger.error(error_msg)
+            result["errors"].append(error_msg)
+            if scan_id:
+                update_scan_status_in_db(scan_id, ScanStatus.FAILED.value, error_message=error_msg)
+            return result
+    
     try:
         # Ejecutar nmap con perfil rápido
         xml_output = run_nmap(["-sV", "-F", "--version-light", target], timeout=240)
@@ -1122,21 +1546,37 @@ def quick_scan(
         result["services"] = scan_data["services"]
         result["host_info"] = scan_data["host_info"]
         result["services_found"] = len(scan_data["services"])
+        
+        # Parsear duración del escaneo
+        duration = parse_nmap_duration(xml_output)
+        if duration:
+            result["duration_seconds"] = duration
+        
         result["success"] = True
         
         logger.info(f"Quick scan completado - {len(scan_data['services'])} servicios")
         
+        # Actualizar status del scan en DB
+        if scan_id:
+            update_scan_status_in_db(scan_id, "completed", results=result)
+        
     except subprocess.TimeoutExpired:
         result["errors"].append(f"Timeout escaneando {target}")
         logger.error(f"Timeout en quick scan: {target}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, "failed", error_message=f"Timeout escaneando {target}")
         
     except subprocess.CalledProcessError as e:
         result["errors"].append(f"Nmap error: {e.stderr}")
         logger.error(f"Nmap error en quick scan: {e}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, "failed", error_message=str(e))
         
     except Exception as e:
         result["errors"].append(str(e))
         logger.exception(f"Error en quick scan: {e}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, "failed", error_message=str(e))
     
     return result
 
@@ -1156,6 +1596,7 @@ def full_scan(
     
     Usa el perfil 'full' para escanear todos los puertos TCP.
     ADVERTENCIA: Puede tardar más de 1 hora.
+    SEGURIDAD: Solo permite escaneos a redes privadas (RFC 1918).
     
     Args:
         target: IP o hostname a escanear
@@ -1176,6 +1617,16 @@ def full_scan(
         "errors": [],
     }
     
+    # SEGURIDAD: Validar que el target sea una red privada
+    for single_target in target.split(","):
+        if not validate_target_security(single_target.strip()):
+            error_msg = f"Security: Target '{single_target}' is not a private network"
+            logger.error(error_msg)
+            result["errors"].append(error_msg)
+            if scan_id:
+                update_scan_status_in_db(scan_id, ScanStatus.FAILED.value, error_message=error_msg)
+            return result
+    
     try:
         # Ejecutar nmap con perfil completo
         xml_output = run_nmap([
@@ -1190,21 +1641,37 @@ def full_scan(
         result["services"] = scan_data["services"]
         result["host_info"] = scan_data["host_info"]
         result["services_found"] = len(scan_data["services"])
+        
+        # Parsear duración del escaneo
+        duration = parse_nmap_duration(xml_output)
+        if duration:
+            result["duration_seconds"] = duration
+        
         result["success"] = True
         
         logger.info(f"Full scan completado - {len(scan_data['services'])} servicios")
         
+        # Actualizar status del scan en DB
+        if scan_id:
+            update_scan_status_in_db(scan_id, "completed", results=result)
+        
     except subprocess.TimeoutExpired:
         result["errors"].append(f"Timeout escaneando {target}")
         logger.error(f"Timeout en full scan: {target}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, "failed", error_message=f"Timeout escaneando {target}")
         
     except subprocess.CalledProcessError as e:
         result["errors"].append(f"Nmap error: {e.stderr}")
         logger.error(f"Nmap error en full scan: {e}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, "failed", error_message=str(e))
         
     except Exception as e:
         result["errors"].append(str(e))
         logger.exception(f"Error en full scan: {e}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, "failed", error_message=str(e))
     
     return result
 
@@ -1223,7 +1690,8 @@ def vulnerability_scan(
     Escaneo de vulnerabilidades con Nmap NSE scripts.
     
     Usa scripts de detección de vulnerabilidades de Nmap.
-    Incluye: vuln, exploit, malware checks.
+    Incluye: vuln, vulners, exploit, auth checks.
+    SEGURIDAD: Solo permite escaneos a redes privadas (RFC 1918).
     
     Args:
         target: IP o hostname a escanear
@@ -1245,11 +1713,21 @@ def vulnerability_scan(
         "errors": [],
     }
     
+    # SEGURIDAD: Validar que el target sea una red privada
+    for single_target in target.split(","):
+        if not validate_target_security(single_target.strip()):
+            error_msg = f"Security: Target '{single_target}' is not a private network"
+            logger.error(error_msg)
+            result["errors"].append(error_msg)
+            if scan_id:
+                update_scan_status_in_db(scan_id, ScanStatus.FAILED.value, error_message=error_msg)
+            return result
+    
     try:
-        # Ejecutar nmap con scripts de vulnerabilidades
+        # Ejecutar nmap con scripts de vulnerabilidades (incluyendo vulners)
         xml_output = run_nmap([
             "-sV", "-sC",
-            "--script", "vuln,exploit,auth",
+            "--script", "vuln,vulners,exploit,auth",
             "-Pn",  # Skip host discovery
             target
         ], timeout=1700)
@@ -1261,20 +1739,45 @@ def vulnerability_scan(
         result["services_found"] = len(scan_data["services"])
         
         # Extraer vulnerabilidades de los scripts
-        # Los scripts de vuln suelen estar en el output del servicio
         for service in scan_data["services"]:
             scripts = service.get("scripts", [])
             for script in scripts:
-                if "vuln" in script.get("id", "").lower():
+                script_id = script.get("id", "").lower()
+                script_output = script.get("output", "")
+                
+                # Parsear script vulners para extraer CVEs
+                if script_id == "vulners":
+                    cves = parse_vulners_output(script_output)
+                    for cve in cves:
+                        cve["port"] = service["port"]
+                        cve["service"] = service.get("service_name", "unknown")
+                        cve["script_id"] = script_id
+                        cve["description"] = f"{cve['cve_id']} detectado en {service.get('service_name', 'servicio')} puerto {service['port']}"
+                        result["vulnerabilities"].append(cve)
+                
+                # Otros scripts de vulnerabilidades
+                elif "vuln" in script_id:
                     result["vulnerabilities"].append({
                         "port": service["port"],
-                        "service": service["service_name"],
-                        "script_id": script.get("id"),
-                        "output": script.get("output", "")[:500],
+                        "service": service.get("service_name", "unknown"),
+                        "script_id": script_id,
+                        "output": script_output[:500],
+                        "severity": VulnerabilitySeverity.MEDIUM.value,
+                        "description": f"Vulnerabilidad detectada por script {script_id}",
                     })
         
         result["vulnerabilities_found"] = len(result["vulnerabilities"])
+        
+        # Parsear duración del escaneo
+        duration = parse_nmap_duration(xml_output)
+        if duration:
+            result["duration_seconds"] = duration
+        
         result["success"] = True
+        
+        # Actualizar estado del scan en DB con resultados (incluyendo vulnerabilidades)
+        if scan_id:
+            update_scan_status_in_db(scan_id, ScanStatus.COMPLETED.value, results=result)
         
         logger.info(
             f"Vulnerability scan completado - "
@@ -1285,14 +1788,20 @@ def vulnerability_scan(
     except subprocess.TimeoutExpired:
         result["errors"].append(f"Timeout escaneando {target}")
         logger.error(f"Timeout en vulnerability scan: {target}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, ScanStatus.FAILED.value, error_message=f"Timeout escaneando {target}")
         
     except subprocess.CalledProcessError as e:
         result["errors"].append(f"Nmap error: {e.stderr}")
         logger.error(f"Nmap error en vulnerability scan: {e}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, ScanStatus.FAILED.value, error_message=f"Nmap error: {e.stderr}")
         
     except Exception as e:
         result["errors"].append(str(e))
         logger.exception(f"Error en vulnerability scan: {e}")
+        if scan_id:
+            update_scan_status_in_db(scan_id, ScanStatus.FAILED.value, error_message=str(e))
     
     return result
 

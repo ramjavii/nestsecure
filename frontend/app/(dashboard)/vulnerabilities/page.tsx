@@ -124,10 +124,10 @@ function VulnerabilitiesPageContent() {
   const stats = useMemo(() => {
     if (!vulnerabilities.length) return null;
     return {
-      critical: vulnerabilities.filter((v) => v.severity === "critical").length,
-      high: vulnerabilities.filter((v) => v.severity === "high").length,
-      medium: vulnerabilities.filter((v) => v.severity === "medium").length,
-      low: vulnerabilities.filter((v) => v.severity === "low").length,
+      critical: vulnerabilities.filter((v: Vulnerability) => v.severity === "critical").length,
+      high: vulnerabilities.filter((v: Vulnerability) => v.severity === "high").length,
+      medium: vulnerabilities.filter((v: Vulnerability) => v.severity === "medium").length,
+      low: vulnerabilities.filter((v: Vulnerability) => v.severity === "low").length,
     };
   }, [vulnerabilities]);
 
@@ -305,7 +305,7 @@ function VulnerabilitiesPageContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {vulnerabilities.map((vuln) => (
+                    {vulnerabilities.map((vuln: Vulnerability) => (
                       <TableRow
                         key={vuln.id}
                         className="border-border cursor-pointer hover:bg-accent/50 transition-colors"
@@ -317,7 +317,7 @@ function VulnerabilitiesPageContent() {
                         <TableCell>
                           <div className="max-w-[300px]">
                             <p className="font-medium text-foreground truncate">
-                              {vuln.title}
+                              {vuln.name}
                             </p>
                             <p className="text-xs text-muted-foreground truncate">
                               CVSS: {vuln.cvss_score?.toFixed(1) || "N/A"}
@@ -341,7 +341,7 @@ function VulnerabilitiesPageContent() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-foreground">
-                              {vuln.asset?.name || "—"}
+                              {vuln.asset?.hostname || vuln.asset?.ip_address || "—"}
                             </span>
                             {vuln.asset && (
                               <ExternalLink className="h-3 w-3 text-muted-foreground" />
@@ -349,13 +349,13 @@ function VulnerabilitiesPageContent() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {statusConfig[vuln.status] && (
+                          {statusConfig[vuln.status as VulnerabilityStatus] && (
                             <Badge
                               variant="outline"
-                              className={`${statusConfig[vuln.status].className} gap-1`}
+                              className={`${statusConfig[vuln.status as VulnerabilityStatus].className} gap-1`}
                             >
-                              {statusConfig[vuln.status].icon}
-                              {statusConfig[vuln.status].label}
+                              {statusConfig[vuln.status as VulnerabilityStatus].icon}
+                              {statusConfig[vuln.status as VulnerabilityStatus].label}
                             </Badge>
                           )}
                         </TableCell>
@@ -372,7 +372,7 @@ function VulnerabilitiesPageContent() {
               </div>
 
               {/* Pagination */}
-              {pagination && pagination.total_pages > 1 && (
+              {pagination && pagination.pages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t border-border">
                   <p className="text-sm text-muted-foreground">
                     Mostrando {(page - 1) * 10 + 1} -{" "}
@@ -390,13 +390,13 @@ function VulnerabilitiesPageContent() {
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                      Página {page} de {pagination.total_pages}
+                      Página {page} de {pagination.pages}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setPage(page + 1)}
-                      disabled={page >= pagination.total_pages}
+                      disabled={page >= pagination.pages}
                       className="bg-transparent"
                     >
                       <ChevronRight className="h-4 w-4" />

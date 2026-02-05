@@ -79,14 +79,14 @@ export default function VulnerabilityDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const { toast } = useToast();
-  const { vulnerability, isLoading, error, mutate } = useVulnerability(id);
+  const { vulnerability, isLoading, error, refetch } = useVulnerability(id);
   const { updateStatus, isUpdating } = useUpdateVulnerabilityStatus();
   const [notes, setNotes] = useState("");
 
   const handleStatusChange = async (newStatus: VulnerabilityStatus) => {
     try {
       await updateStatus(id, newStatus);
-      mutate();
+      refetch();
       toast({
         title: "Estado actualizado",
         description: `La vulnerabilidad ahora está ${statusConfig[newStatus].label.toLowerCase()}`,
@@ -114,7 +114,11 @@ export default function VulnerabilityDetailPage({
             Volver
           </Button>
         </div>
-        <CardSkeleton count={3} />
+        <div className="space-y-4">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
       </div>
     );
   }
@@ -171,7 +175,7 @@ export default function VulnerabilityDetailPage({
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-xl font-bold text-foreground">
-                  {vulnerability.title}
+                  {vulnerability.name}
                 </h1>
                 <SeverityBadge severity={vulnerability.severity} size="lg" />
               </div>
@@ -253,7 +257,7 @@ export default function VulnerabilityDetailPage({
                         Referencias
                       </h4>
                       <ul className="space-y-2">
-                        {vulnerability.references.map((ref, idx) => (
+                        {vulnerability.references.map((ref: string, idx: number) => (
                           <li key={idx}>
                             <a
                               href={ref}
@@ -283,7 +287,7 @@ export default function VulnerabilityDetailPage({
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                    {vulnerability.remediation || "Sin recomendaciones de remediación disponibles."}
+                    {vulnerability.remediation || vulnerability.solution || "Sin recomendaciones de remediación disponibles."}
                   </p>
                 </CardContent>
               </Card>
@@ -390,10 +394,10 @@ export default function VulnerabilityDetailPage({
             <CardContent>
               <Badge
                 variant="outline"
-                className={`${statusConfig[vulnerability.status].className} gap-2 text-sm py-1.5 px-3`}
+                className={`${statusConfig[vulnerability.status as VulnerabilityStatus]?.className || ''} gap-2 text-sm py-1.5 px-3`}
               >
-                {statusConfig[vulnerability.status].icon}
-                {statusConfig[vulnerability.status].label}
+                {statusConfig[vulnerability.status as VulnerabilityStatus]?.icon}
+                {statusConfig[vulnerability.status as VulnerabilityStatus]?.label || vulnerability.status}
               </Badge>
             </CardContent>
           </Card>
@@ -445,10 +449,10 @@ export default function VulnerabilityDetailPage({
                 <div className="space-y-3">
                   <div>
                     <p className="font-medium text-foreground">
-                      {vulnerability.asset.name}
+                      {vulnerability.asset.hostname || vulnerability.asset.ip_address}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {vulnerability.asset.type}
+                      {vulnerability.asset.asset_type}
                     </p>
                   </div>
                   <Button
@@ -484,11 +488,11 @@ export default function VulnerabilityDetailPage({
                       {vulnerability.scan.name}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {format(
-                        new Date(vulnerability.scan.created_at),
+                      {vulnerability.scan.started_at ? format(
+                        new Date(vulnerability.scan.started_at),
                         "d MMM yyyy",
                         { locale: es }
-                      )}
+                      ) : 'Fecha no disponible'}
                     </p>
                   </div>
                   <Button

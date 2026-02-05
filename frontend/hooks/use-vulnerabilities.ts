@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { UpdateVulnerabilityPayload } from '@/types';
+import type { UpdateVulnerabilityPayload, Vulnerability } from '@/types';
 
 export function useVulnerabilities(params?: {
   severity?: string;
@@ -10,19 +10,40 @@ export function useVulnerabilities(params?: {
   search?: string;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 }) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['vulnerabilities', params],
     queryFn: () => api.getVulnerabilities(params),
   });
+
+  return {
+    vulnerabilities: query.data || [] as Vulnerability[],
+    isLoading: query.isLoading,
+    error: query.error,
+    pagination: {
+      total: query.data?.length || 0,
+      page: params?.page || 1,
+      pages: 1,
+    },
+    refetch: query.refetch,
+  };
 }
 
 export function useVulnerability(id: string) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['vulnerability', id],
     queryFn: () => api.getVulnerability(id),
     enabled: !!id,
   });
+
+  return {
+    vulnerability: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }
 
 export function useUpdateVulnerability() {
