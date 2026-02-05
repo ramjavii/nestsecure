@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { CreateScanPayload, Scan, ScanStatus } from '@/types';
+import type { CreateScanPayload, Scan, ScanStatus, ScanResultsResponse, ScanHostsResponse, ScanLogsResponse } from '@/types';
 
 // Intervalo de polling para diferentes estados
 const POLLING_INTERVALS = {
@@ -145,6 +145,60 @@ export function useDeleteScan() {
     mutationFn: (id: string) => api.deleteScan(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scans'] });
+    },
+  });
+}
+
+/**
+ * Hook para obtener resultados/vulnerabilidades de un scan
+ * Hace polling mientras el scan está en ejecución
+ */
+export function useScanResults(scanId: string, scanStatus?: ScanStatus) {
+  return useQuery({
+    queryKey: ['scan-results', scanId],
+    queryFn: () => api.getScanResults(scanId),
+    enabled: !!scanId,
+    refetchInterval: () => {
+      // Polling solo si el scan está activo
+      if (scanStatus === 'running') return 5000;
+      if (scanStatus === 'queued') return 10000;
+      return false;
+    },
+  });
+}
+
+/**
+ * Hook para obtener hosts descubiertos en un scan
+ * Hace polling mientras el scan está en ejecución
+ */
+export function useScanHosts(scanId: string, scanStatus?: ScanStatus) {
+  return useQuery({
+    queryKey: ['scan-hosts', scanId],
+    queryFn: () => api.getScanHosts(scanId),
+    enabled: !!scanId,
+    refetchInterval: () => {
+      // Polling solo si el scan está activo
+      if (scanStatus === 'running') return 5000;
+      if (scanStatus === 'queued') return 10000;
+      return false;
+    },
+  });
+}
+
+/**
+ * Hook para obtener logs de un scan
+ * Hace polling frecuente mientras el scan está en ejecución
+ */
+export function useScanLogs(scanId: string, scanStatus?: ScanStatus) {
+  return useQuery({
+    queryKey: ['scan-logs', scanId],
+    queryFn: () => api.getScanLogs(scanId),
+    enabled: !!scanId,
+    refetchInterval: () => {
+      // Polling más frecuente para logs
+      if (scanStatus === 'running') return 2000;
+      if (scanStatus === 'queued') return 5000;
+      return false;
     },
   });
 }

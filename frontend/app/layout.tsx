@@ -19,7 +19,6 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'NESTSECURE - Security Operations Center',
   description: 'Plataforma de gestión de seguridad y vulnerabilidades',
-  generator: 'v0.app',
   icons: {
     icon: [
       {

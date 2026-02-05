@@ -134,7 +134,7 @@ async def list_assets(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentActiveUser,
     page: int = Query(default=1, ge=1, description="Número de página"),
-    page_size: int = Query(default=20, ge=1, le=100, description="Items por página"),
+    page_size: int = Query(default=100, ge=1, le=1000, description="Items por página"),
     search: str | None = Query(default=None, description="Buscar por IP o hostname"),
     status: str | None = Query(default=None, description="Filtrar por estado"),
     criticality: str | None = Query(default=None, description="Filtrar por criticidad"),

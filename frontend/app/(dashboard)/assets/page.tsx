@@ -72,7 +72,7 @@ const statusOptions: { value: string; label: string }[] = [
   { value: 'active', label: 'Activo' },
   { value: 'inactive', label: 'Inactivo' },
   { value: 'maintenance', label: 'Mantenimiento' },
-];\n\n// Production mode - no mock data
+];
 
 export default function AssetsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);

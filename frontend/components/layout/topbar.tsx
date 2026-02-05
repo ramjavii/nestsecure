@@ -133,50 +133,16 @@ export function Topbar({ onMenuClick, sidebarCollapsed }: TopbarProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] bg-destructive text-destructive-foreground">
-                  3
-                </Badge>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel>Notificaciones</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <div className="max-h-64 overflow-y-auto">
-                <DropdownMenuItem className="flex flex-col items-start gap-1 py-3 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-severity-critical" />
-                    <span className="font-medium text-sm">Vulnerabilidad Crítica</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    Se detectó CVE-2024-1234 en servidor-prod-01
-                  </span>
-                  <span className="text-xs text-muted-foreground">hace 5 min</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="flex flex-col items-start gap-1 py-3 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-status-success" />
-                    <span className="font-medium text-sm">Escaneo completado</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    Escaneo de red interna finalizado exitosamente
-                  </span>
-                  <span className="text-xs text-muted-foreground">hace 15 min</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="flex flex-col items-start gap-1 py-3 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-status-warning" />
-                    <span className="font-medium text-sm">Asset inactivo</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    No se puede alcanzar 192.168.1.100
-                  </span>
-                  <span className="text-xs text-muted-foreground">hace 1 hora</span>
-                </DropdownMenuItem>
+              <div className="py-8 text-center">
+                <Bell className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">No hay notificaciones</p>
+                <p className="text-xs text-muted-foreground/70">Las alertas aparecerán aquí</p>
               </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-center text-sm text-primary cursor-pointer justify-center">
-                Ver todas las notificaciones
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

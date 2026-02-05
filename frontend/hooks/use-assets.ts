@@ -9,10 +9,12 @@ export function useAssets(params?: {
   criticality?: string; 
   status?: string;
   search?: string;
+  page?: number;
+  page_size?: number;
 }) {
   return useQuery({
     queryKey: ['assets', params],
-    queryFn: () => api.getAssets(params),
+    queryFn: () => api.getAssets({ page_size: 500, ...params }),
   });
 }
 

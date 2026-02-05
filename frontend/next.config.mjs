@@ -3,6 +3,9 @@ const nextConfig = {
   // Habilitar output standalone para Docker
   output: 'standalone',
   
+  // Deshabilitar indicador de desarrollo (popup Next.js)
+  devIndicators: false,
+  
   // TypeScript - ignorar errores de build en desarrollo
   typescript: {
     ignoreBuildErrors: true,

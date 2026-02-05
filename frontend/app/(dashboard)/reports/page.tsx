@@ -61,17 +61,6 @@ const reportTypes = [
   },
 ];
 
-// Mock generated reports - empty for production
-const mockReports: Array<{
-  id: string;
-  name: string;
-  type: string;
-  format: string;
-  created_at: Date;
-  size: string;
-  status: string;
-}> = [];
-
 const formatIcons: Record<string, React.ReactNode> = {
   pdf: <FileText className="h-4 w-4 text-red-500" />,
   json: <FileJson className="h-4 w-4 text-yellow-500" />,
@@ -204,45 +193,11 @@ export default function ReportsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {mockReports.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="Sin reportes"
-              description="Aún no has generado ningún reporte"
-            />
-          ) : (
-            <div className="space-y-3">
-              {mockReports.map((report) => (
-                <div
-                  key={report.id}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-muted">
-                      {formatIcons[report.format]}
-                    </div>
-                    <div>
-                      <p className="font-medium">{report.name}</p>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {format(report.created_at, "dd MMM yyyy, HH:mm", { locale: es })}
-                        </span>
-                        <span>{report.size}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {report.format.toUpperCase()}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Descargar
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          <EmptyState
+            icon={FileText}
+            title="Sin reportes"
+            description="Aún no has generado ningún reporte. Usa el formulario de arriba para crear uno."
+          />
         </CardContent>
       </Card>
 
@@ -255,7 +210,7 @@ export default function ReportsPage() {
                 <FileText className="h-6 w-6 text-blue-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{mockReports.length}</p>
+                <p className="text-2xl font-bold">0</p>
                 <p className="text-sm text-muted-foreground">Reportes Generados</p>
               </div>
             </div>
@@ -269,9 +224,7 @@ export default function ReportsPage() {
                 <CheckCircle2 className="h-6 w-6 text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
-                  {mockReports.filter((r) => r.type === "compliance").length}
-                </p>
+                <p className="text-2xl font-bold">0</p>
                 <p className="text-sm text-muted-foreground">Reportes de Cumplimiento</p>
               </div>
             </div>
@@ -285,9 +238,7 @@ export default function ReportsPage() {
                 <PieChart className="h-6 w-6 text-purple-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
-                  {mockReports.filter((r) => r.type === "executive").length}
-                </p>
+                <p className="text-2xl font-bold">0</p>
                 <p className="text-sm text-muted-foreground">Reportes Ejecutivos</p>
               </div>
             </div>

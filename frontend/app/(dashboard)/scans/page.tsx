@@ -43,8 +43,8 @@ import type { Scan, ScanStatus, ScanType } from '@/types';
 
 const scanTypeLabels: Record<ScanType, string> = {
   discovery: 'Descubrimiento',
-  port_scan: 'Escaneo de Puertos',
-  service_scan: 'Detección de Servicios',
+  port_scan: 'Puertos y Servicios',
+  service_scan: 'Puertos y Servicios', // Alias para compatibilidad
   vulnerability: 'Vulnerabilidades',
   full: 'Completo',
 };
@@ -62,8 +62,7 @@ const statusOptions: { value: string; label: string }[] = [
 const typeOptions: { value: string; label: string }[] = [
   { value: 'all', label: 'Todos los tipos' },
   { value: 'discovery', label: 'Descubrimiento' },
-  { value: 'port_scan', label: 'Escaneo de Puertos' },
-  { value: 'service_scan', label: 'Detección de Servicios' },
+  { value: 'port_scan', label: 'Puertos y Servicios' },
   { value: 'vulnerability', label: 'Vulnerabilidades' },
   { value: 'full', label: 'Completo' },
 ];

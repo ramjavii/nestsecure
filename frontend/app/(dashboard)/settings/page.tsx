@@ -39,10 +39,15 @@ export default function SettingsPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  // Derive first_name and last_name from full_name if not present
+  const nameParts = user?.full_name?.split(' ') || [];
+  const firstName = user?.first_name || nameParts[0] || '';
+  const lastName = user?.last_name || nameParts.slice(1).join(' ') || '';
+
   // Profile form state
   const [profileForm, setProfileForm] = useState({
-    first_name: user?.first_name || "",
-    last_name: user?.last_name || "",
+    first_name: firstName,
+    last_name: lastName,
     email: user?.email || "",
   });
 
@@ -186,10 +191,10 @@ export default function SettingsPage() {
               {/* Avatar */}
               <div className="flex items-center gap-6">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.first_name} />
+                  <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={firstName} />
                   <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                    {user?.first_name?.[0]}
-                    {user?.last_name?.[0]}
+                    {firstName?.[0]}
+                    {lastName?.[0]}
                   </AvatarFallback>
                 </Avatar>
                 <div className="space-y-2">

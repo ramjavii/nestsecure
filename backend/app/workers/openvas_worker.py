@@ -118,7 +118,7 @@ async def _async_full_scan(
     if not scan_name:
         scan_name = f"NestSecure-{scan_id[:8]}"
     
-    ACTIVE_SCANS.labels(scanner="openvas").inc()
+    ACTIVE_SCANS.labels(scan_type="openvas").inc()
     logger.info(f"Starting OpenVAS scan {scan_id}", extra={"scan_id": scan_id, "targets": targets})
     
     try:
@@ -171,11 +171,11 @@ async def _async_full_scan(
             report = await gvm.get_report(report_id)
             
             duration = (datetime.utcnow() - start_time).total_seconds()
-            SCAN_DURATION_SECONDS.labels(scanner="openvas", status="success").observe(duration)
-            VULNERABILITIES_FOUND_TOTAL.labels(scanner="openvas", severity="critical").inc(report.critical_count)
-            VULNERABILITIES_FOUND_TOTAL.labels(scanner="openvas", severity="high").inc(report.high_count)
-            VULNERABILITIES_FOUND_TOTAL.labels(scanner="openvas", severity="medium").inc(report.medium_count)
-            VULNERABILITIES_FOUND_TOTAL.labels(scanner="openvas", severity="low").inc(report.low_count)
+            SCAN_DURATION_SECONDS.labels(scan_type="openvas").observe(duration)
+            VULNERABILITIES_FOUND_TOTAL.labels(severity="critical").inc(report.critical_count)
+            VULNERABILITIES_FOUND_TOTAL.labels(severity="high").inc(report.high_count)
+            VULNERABILITIES_FOUND_TOTAL.labels(severity="medium").inc(report.medium_count)
+            VULNERABILITIES_FOUND_TOTAL.labels(severity="low").inc(report.low_count)
             
             update_task_state(task, "PROGRESS", 100, "completed")
             
@@ -188,13 +188,15 @@ async def _async_full_scan(
     
     except GVMTimeoutError as e:
         duration = (datetime.utcnow() - start_time).total_seconds()
-        SCAN_DURATION_SECONDS.labels(scanner="openvas", status="timeout").observe(duration)
+        SCAN_DURATION_SECONDS.labels(scan_type="openvas").observe(duration)
         return {"scan_id": scan_id, "status": "timeout", "target_id": target_id, "task_id": task_id, "report_id": report_id, "duration_seconds": duration, "error": str(e)}
     
     except GVMError as e:
-        logger.error(f"GVM error in scan {scan_id}: {e}", extra=e.to_dict())
+        # Evitar KeyError por keys reservadas en LogRecord
+        error_extra = {k: v for k, v in e.to_dict().items() if k not in ('message', 'msg', 'args')}
+        logger.error(f"GVM error in scan {scan_id}: {e}", extra={'gvm_error': error_extra})
         duration = (datetime.utcnow() - start_time).total_seconds()
-        SCAN_DURATION_SECONDS.labels(scanner="openvas", status="error").observe(duration)
+        SCAN_DURATION_SECONDS.labels(scan_type="openvas").observe(duration)
         return {"scan_id": scan_id, "status": "failed", "target_id": target_id, "task_id": task_id, "report_id": report_id, "duration_seconds": duration, "error": str(e)}
     
     except Exception as e:
@@ -203,7 +205,7 @@ async def _async_full_scan(
         return {"scan_id": scan_id, "status": "failed", "target_id": target_id, "task_id": task_id, "report_id": report_id, "duration_seconds": duration, "error": f"Unexpected: {e}"}
     
     finally:
-        ACTIVE_SCANS.labels(scanner="openvas").dec()
+        ACTIVE_SCANS.labels(scan_type="openvas").dec()
 
 
 # =============================================================================

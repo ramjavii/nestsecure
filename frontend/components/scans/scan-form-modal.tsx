@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -25,14 +25,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCreateScan } from '@/hooks/use-scans';
 import { useToast } from '@/hooks/use-toast';
+import { validateMultipleTargetsLocally } from '@/hooks/use-network';
 import type { ScanType } from '@/types';
 
 const scanSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
   description: z.string().optional(),
-  scan_type: z.enum(['discovery', 'port_scan', 'service_scan', 'vulnerability', 'full']),
+  scan_type: z.enum(['discovery', 'port_scan', 'vulnerability', 'full']),
   targets: z.string().min(1, 'Debes especificar al menos un target'),
   port_range: z.string().optional(),
   scheduled: z.boolean().default(false),
@@ -48,14 +50,19 @@ interface ScanFormModalProps {
 
 const scanTypes: { value: ScanType; label: string; description: string }[] = [
   { value: 'discovery', label: 'Descubrimiento', description: 'Detecta hosts activos en la red' },
-  { value: 'port_scan', label: 'Escaneo de Puertos', description: 'Identifica puertos abiertos' },
-  { value: 'service_scan', label: 'Detección de Servicios', description: 'Identifica servicios y versiones' },
-  { value: 'vulnerability', label: 'Vulnerabilidades', description: 'Busca vulnerabilidades conocidas' },
-  { value: 'full', label: 'Completo', description: 'Escaneo completo de la red' },
+  { value: 'port_scan', label: 'Puertos y Servicios', description: 'Identifica puertos abiertos, servicios y versiones' },
+  { value: 'vulnerability', label: 'Vulnerabilidades', description: 'Busca vulnerabilidades conocidas con Nmap NSE' },
+  { value: 'full', label: 'Completo', description: 'Escaneo completo: todos los puertos (65535)' },
 ];
 
 export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
   const [isScheduled, setIsScheduled] = useState(false);
+  const [targetValidation, setTargetValidation] = useState<{
+    valid: boolean;
+    errors: string[];
+    validCount: number;
+    invalidCount: number;
+  } | null>(null);
   const createScan = useCreateScan();
   const { toast } = useToast();
 
@@ -75,6 +82,46 @@ export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
   });
 
   const scanType = watch('scan_type');
+  const targetsValue = watch('targets');
+
+  // Validar targets cuando cambian
+  const validateTargets = useCallback((value: string) => {
+    if (!value || !value.trim()) {
+      setTargetValidation(null);
+      return;
+    }
+
+    const targets = value
+      .split('\n')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    if (targets.length === 0) {
+      setTargetValidation(null);
+      return;
+    }
+
+    const result = validateMultipleTargetsLocally(targets);
+    const errorMessages = result.results
+      .filter((r) => !r.valid)
+      .map((r) => `${r.target}: ${r.error}`);
+
+    setTargetValidation({
+      valid: result.valid,
+      errors: errorMessages,
+      validCount: result.validCount,
+      invalidCount: result.invalidCount,
+    });
+  }, []);
+
+  // Efecto para validar cuando cambian los targets
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      validateTargets(targetsValue || '');
+    }, 300); // Debounce 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [targetsValue, validateTargets]);
 
   const onSubmit = async (data: ScanFormData) => {
     try {
@@ -146,7 +193,7 @@ export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
             <Label>Tipo de escaneo</Label>
             <Select
               value={scanType}
-              onValueChange={(value) => setValue('scan_type', value as ScanType)}
+              onValueChange={(value) => setValue('scan_type', value as 'discovery' | 'port_scan' | 'vulnerability' | 'full')}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona el tipo" />
@@ -168,17 +215,61 @@ export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
             <Label htmlFor="targets">Targets</Label>
             <Textarea
               id="targets"
-              placeholder="192.168.1.0/24&#10;10.0.0.1&#10;ejemplo.com"
+              placeholder="192.168.1.0/24&#10;10.0.0.1&#10;172.16.0.100"
               rows={3}
               {...register('targets')}
+              className={targetValidation && !targetValidation.valid ? 'border-destructive' : ''}
             />
             <p className="text-xs text-muted-foreground">
-              Ingresa IPs, rangos CIDR o hostnames (uno por línea)
+              Solo se permiten IPs privadas (10.x, 172.16-31.x, 192.168.x) o CIDR
             </p>
+            
+            {/* Mostrar estado de validación */}
+            {targetValidation && (
+              <div className="mt-2">
+                {targetValidation.valid ? (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>{targetValidation.validCount} target(s) válido(s)</span>
+                  </div>
+                ) : (
+                  <Alert variant="destructive" className="py-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="text-sm">
+                        <p className="font-medium">
+                          {targetValidation.invalidCount} target(s) inválido(s):
+                        </p>
+                        <ul className="mt-1 list-disc list-inside">
+                          {targetValidation.errors.slice(0, 3).map((error, i) => (
+                            <li key={i} className="text-xs">{error}</li>
+                          ))}
+                          {targetValidation.errors.length > 3 && (
+                            <li className="text-xs">
+                              ... y {targetValidation.errors.length - 3} más
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+            
             {errors.targets && (
               <p className="text-sm text-destructive">{errors.targets.message}</p>
             )}
           </div>
+
+          {/* Info de seguridad */}
+          <Alert className="py-2">
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              Por seguridad, solo se permiten escaneos a redes privadas (RFC 1918).
+              Las IPs públicas y hostnames están bloqueados.
+            </AlertDescription>
+          </Alert>
 
           <div className="space-y-2">
             <Label htmlFor="port_range">Rango de puertos (opcional)</Label>
@@ -229,7 +320,10 @@ export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={createScan.isPending}>
+            <Button 
+              type="submit" 
+              disabled={createScan.isPending || (targetValidation !== null && !targetValidation.valid)}
+            >
               {createScan.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}

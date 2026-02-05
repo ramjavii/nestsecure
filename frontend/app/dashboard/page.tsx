@@ -9,13 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { cn } from '@/lib/utils';
-
-interface DashboardStats {
-  assets: { total: number; active: number };
-  services: { total: number; open: number };
-  vulnerabilities: { critical: number; high: number; medium: number; low: number };
-  risk: { average_score: number; assets_at_risk: number };
-}
+import type { DashboardStats } from '@/types';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -165,10 +159,10 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {(stats?.risk?.average_score || 0).toFixed(1)}
+                  {(stats?.risk_score || 0).toFixed(1)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {stats?.risk?.assets_at_risk || 0} assets en riesgo
+                  Score de riesgo general
                 </p>
               </CardContent>
             </Card>

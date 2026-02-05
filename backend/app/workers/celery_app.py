@@ -27,6 +27,9 @@ celery_app = Celery(
     backend=settings.celery_backend,
     include=[
         "app.workers.nmap_worker",
+        "app.workers.openvas_worker",
+        "app.workers.nuclei_worker",
+        "app.workers.zap_worker",
         "app.workers.cve_worker",
         "app.workers.report_worker",
         "app.workers.cleanup_worker",
@@ -88,10 +91,13 @@ celery_app.conf.update(
     # Routes (opcional - para diferentes colas)
     # -------------------------------------------------------------------------
     task_routes={
-        "app.workers.nmap_worker.*": {"queue": "scanning"},
-        "app.workers.cve_worker.*": {"queue": "enrichment"},
-        "app.workers.reports_worker.*": {"queue": "reports"},
-        "app.workers.cleanup_worker.*": {"queue": "maintenance"},
+        "app.workers.nmap_worker.*": {"queue": "default"},
+        "app.workers.openvas_worker.*": {"queue": "default"},
+        "app.workers.nuclei_worker.*": {"queue": "default"},
+        "app.workers.zap_worker.*": {"queue": "default"},
+        "app.workers.cve_worker.*": {"queue": "default"},
+        "app.workers.report_worker.*": {"queue": "default"},
+        "app.workers.cleanup_worker.*": {"queue": "default"},
     },
     
     # -------------------------------------------------------------------------
