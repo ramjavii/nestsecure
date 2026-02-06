@@ -68,13 +68,6 @@ export function ScanProgress({
   const { data: scan, isLoading, error } = useScanStatus(scanId);
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
-  // Animar el progreso suavemente
-  useEffect(() => {
-    if (scan?.progress !== undefined) {
-      setAnimatedProgress(scan.progress);
-    }
-  }, [scan?.progress]);
-
   if (isLoading) {
     return (
       <div className={cn('flex items-center gap-2', className)}>
@@ -96,6 +89,14 @@ export function ScanProgress({
   const config = statusConfig[scan.status];
   const StatusIcon = config.icon;
   const isActive = ['running', 'pending', 'queued'].includes(scan.status);
+
+  // Forzar 100% cuando el scan está completado
+  const displayProgress = scan.status === 'completed' ? 100 : (scan.progress || 0);
+
+  // Animar el progreso suavemente
+  useEffect(() => {
+    setAnimatedProgress(displayProgress);
+  }, [displayProgress]);
 
   // Tamaños
   const sizeClasses = {
@@ -128,7 +129,7 @@ export function ScanProgress({
         </Badge>
         
         <span className={cn(sizeClasses[size], 'font-medium tabular-nums')}>
-          {scan.progress}%
+          {displayProgress}%
         </span>
       </div>
 

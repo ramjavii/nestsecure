@@ -44,9 +44,12 @@ import type { Scan, ScanStatus, ScanType } from '@/types';
 const scanTypeLabels: Record<ScanType, string> = {
   discovery: 'Descubrimiento',
   port_scan: 'Puertos y Servicios',
-  service_scan: 'Puertos y Servicios', // Alias para compatibilidad
-  vulnerability: 'Vulnerabilidades',
+  service_scan: 'Detección de Servicios',
+  vulnerability: 'Vulnerabilidades (Nmap)',
   full: 'Completo',
+  nuclei: 'Nuclei',
+  zap: 'OWASP ZAP',
+  openvas: 'OpenVAS',
 };
 
 const statusOptions: { value: string; label: string }[] = [
@@ -63,8 +66,11 @@ const typeOptions: { value: string; label: string }[] = [
   { value: 'all', label: 'Todos los tipos' },
   { value: 'discovery', label: 'Descubrimiento' },
   { value: 'port_scan', label: 'Puertos y Servicios' },
-  { value: 'vulnerability', label: 'Vulnerabilidades' },
+  { value: 'vulnerability', label: 'Vulnerabilidades (Nmap)' },
   { value: 'full', label: 'Completo' },
+  { value: 'nuclei', label: 'Nuclei' },
+  { value: 'zap', label: 'OWASP ZAP' },
+  { value: 'openvas', label: 'OpenVAS' },
 ];
 
 // Production mode - no mock data
@@ -240,7 +246,7 @@ export default function ScansPage() {
                     </TableCell>
                     <TableCell className="w-32">
                       <ProgressBar
-                        value={scan.progress}
+                        value={scan.status === 'completed' ? 100 : scan.progress}
                         size="sm"
                         showLabel
                         animated={scan.status === 'running'}

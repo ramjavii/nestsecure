@@ -7,12 +7,13 @@ import { SeverityPieChart } from '@/components/dashboard/severity-pie-chart';
 import { RecentScansTable } from '@/components/dashboard/recent-scans-table';
 import { TopVulnsTable } from '@/components/dashboard/top-vulns-table';
 import { PageHeader } from '@/components/shared/page-header';
-import { useDashboardStats, useRecentScans, useVulnerabilityTrend } from '@/hooks/use-dashboard';
+import { useDashboardStats, useRecentScans, useVulnerabilityTrend, useTopVulnerabilities } from '@/hooks/use-dashboard';
 
 export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: recentScans, isLoading: scansLoading } = useRecentScans();
   const { data: vulnTrend, isLoading: trendLoading } = useVulnerabilityTrend();
+  const { data: topVulns, isLoading: vulnsLoading } = useTopVulnerabilities(5);
 
   // Default empty stats when no data from API
   const emptyStats = {
@@ -97,7 +98,7 @@ export default function DashboardPage() {
       {/* Tables Row */}
       <div className="grid gap-6 xl:grid-cols-2">
         <RecentScansTable scans={recentScans} isLoading={scansLoading} />
-        <TopVulnsTable isLoading={statsLoading} />
+        <TopVulnsTable vulnerabilities={topVulns} isLoading={vulnsLoading} />
       </div>
     </div>
   );

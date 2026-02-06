@@ -24,7 +24,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, desc, Integer, cast
+from sqlalchemy import select, func, desc, Integer, cast, String, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -36,6 +36,8 @@ from app.models.service import Service
 from app.utils.logger import get_logger
 from app.utils.network_utils import validate_targets_list
 from app.workers.openvas_worker import openvas_full_scan, openvas_stop_scan, openvas_check_status
+from app.workers.zap_worker import zap_scan as zap_scan_task
+from app.workers.nuclei_worker import nuclei_scan as nuclei_scan_task
 from app.integrations.nmap import get_all_profiles as get_nmap_profiles, SCAN_PROFILES as NMAP_PROFILES
 from app.workers.nmap_worker import (
     discovery_scan as nmap_discovery_task,
@@ -133,6 +135,7 @@ class VulnerabilitySummary(BaseModel):
     host: Optional[str] = None
     port: Optional[int] = None
     cve_ids: List[str] = []
+    affected_count: int = 1  # Number of hosts affected by this vulnerability
 
 
 class ScanResultsResponse(BaseModel):
@@ -281,6 +284,37 @@ async def create_scan(
                 target=targets_str,
                 organization_id=str(current_user.organization_id),
                 scan_id=str(scan.id),
+            )
+        elif scan_data.scan_type == ScanType.ZAP:
+            # Usar OWASP ZAP para escaneo web DAST
+            # ZAP espera URLs, si son IPs las convertimos a http://
+            target_urls = []
+            for t in scan_data.targets:
+                if t.startswith("http://") or t.startswith("https://"):
+                    target_urls.append(t)
+                else:
+                    target_urls.append(f"http://{t}")
+            
+            task = zap_scan_task.delay(
+                target_url=target_urls[0],  # ZAP escanea una URL a la vez
+                mode="standard",
+                organization_id=str(current_user.organization_id),
+                scan_id=str(scan.id),
+            )
+        elif scan_data.scan_type == ScanType.NUCLEI:
+            # Usar Nuclei para escaneo de vulnerabilidades web
+            task = nuclei_scan_task.delay(
+                target=targets_str,
+                profile="standard",
+                scan_id=str(scan.id),
+            )
+        elif scan_data.scan_type == ScanType.OPENVAS:
+            # Usar OpenVAS/GVM para escaneo profundo de vulnerabilidades
+            task = openvas_full_scan.delay(
+                scan_id=str(scan.id),
+                targets=targets_str,
+                scan_name=scan_data.name,
+                organization_id=str(current_user.organization_id),
             )
         else:
             # Fallback para tipos desconocidos, usar discovery
@@ -440,6 +474,7 @@ async def get_scan_results(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     min_severity: Optional[float] = Query(None, ge=0, le=10),
+    group_duplicates: bool = Query(True, description="Group vulnerabilities by name"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -467,26 +502,67 @@ async def get_scan_results(
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
     
-    # Paginación
-    offset = (page - 1) * page_size
-    vuln_query = vuln_query.order_by(desc(Vulnerability.severity)).offset(offset).limit(page_size)
-    
+    # Get all vulnerabilities for grouping
+    vuln_query = vuln_query.order_by(desc(Vulnerability.severity))
     vuln_result = await db.execute(vuln_query)
     vulns = vuln_result.scalars().all()
     
-    vulnerabilities = [
-        VulnerabilitySummary(
-            id=v.id,
-            name=v.name,
-            severity=v.severity,
-            cvss_score=v.cvss_score,
-            severity_class=v.severity_class,
-            host=v.host,
-            port=v.port,
-            cve_ids=v.cve_ids or [],
-        )
-        for v in vulns
-    ]
+    if group_duplicates:
+        # Group vulnerabilities by name to avoid duplicates
+        grouped_vulns = {}
+        for v in vulns:
+            key = v.name
+            if key not in grouped_vulns:
+                grouped_vulns[key] = {
+                    "vuln": v,
+                    "hosts": set(),
+                    "ports": set(),
+                    "count": 0,
+                }
+            grouped_vulns[key]["count"] += 1
+            if v.host:
+                grouped_vulns[key]["hosts"].add(v.host)
+            if v.port:
+                grouped_vulns[key]["ports"].add(v.port)
+        
+        # Convert to list and paginate
+        grouped_list = list(grouped_vulns.values())
+        offset = (page - 1) * page_size
+        paginated = grouped_list[offset:offset + page_size]
+        
+        vulnerabilities = [
+            VulnerabilitySummary(
+                id=item["vuln"].id,
+                name=item["vuln"].name,
+                severity=item["vuln"].severity,
+                cvss_score=item["vuln"].cvss_score,
+                severity_class=item["vuln"].severity_class,
+                host=list(item["hosts"])[0] if item["hosts"] else None,
+                port=list(item["ports"])[0] if item["ports"] else None,
+                cve_ids=item["vuln"].cve_ids or [],
+                affected_count=item["count"],
+            )
+            for item in paginated
+        ]
+        total = len(grouped_vulns)
+    else:
+        # Paginación normal sin agrupar
+        offset = (page - 1) * page_size
+        paginated_vulns = vulns[offset:offset + page_size]
+        
+        vulnerabilities = [
+            VulnerabilitySummary(
+                id=v.id,
+                name=v.name,
+                severity=v.severity,
+                cvss_score=v.cvss_score,
+                severity_class=v.severity_class,
+                host=v.host,
+                port=v.port,
+                cve_ids=v.cve_ids or [],
+            )
+            for v in paginated_vulns
+        ]
     
     summary = {
         "total": scan.total_vulnerabilities,
@@ -536,85 +612,163 @@ async def get_scan_hosts(
     
     hosts = []
     
-    # Obtener assets basándose en los targets del scan
-    # Los targets pueden ser IPs individuales o rangos CIDR
-    if scan.targets:
-        for target in scan.targets:
-            # Buscar asset por IP
-            asset_query = select(Asset).where(
-                Asset.organization_id == current_user.organization_id,
-                Asset.ip_address == target,
-            )
-            asset_result = await db.execute(asset_query)
-            asset = asset_result.scalar_one_or_none()
+    # Para scans de descubrimiento, buscar assets creados/actualizados durante el scan
+    if scan.scan_type == 'discovery' or scan.scan_type == 'full':
+        # Estrategia principal para discovery: buscar por targets/IPs del scan
+        # Esta es la forma más directa ya que conocemos los targets escaneados
+        asset_query = select(Asset).where(
+            Asset.organization_id == current_user.organization_id,
+        )
+        
+        if scan.targets:
+            ip_conditions = []
+            for target in scan.targets:
+                if '/' in target:
+                    # Es un CIDR, buscar por prefijo de IP (ej: 192.168.15.0/24 -> 192.168.15.%)
+                    network_prefix = target.split('/')[0].rsplit('.', 1)[0]
+                    ip_conditions.append(cast(Asset.ip_address, String).like(f"{network_prefix}.%"))
+                else:
+                    # IP individual
+                    ip_conditions.append(cast(Asset.ip_address, String) == target)
             
-            if asset:
-                # Contar vulnerabilidades por asset en este scan
-                vuln_count_query = select(
-                    func.count(Vulnerability.id),
-                    func.sum(func.cast(Vulnerability.severity == 'critical', Integer)),
-                    func.sum(func.cast(Vulnerability.severity == 'high', Integer)),
-                ).where(
-                    Vulnerability.scan_id == scan_id,
-                    Vulnerability.asset_id == asset.id,
+            if ip_conditions:
+                asset_query = asset_query.where(or_(*ip_conditions))
+        
+        asset_result = await db.execute(asset_query)
+        assets = asset_result.scalars().all()
+        
+        for asset in assets:
+            # Contar vulnerabilidades por asset en este scan
+            vuln_count_query = select(
+                func.count(Vulnerability.id),
+                func.sum(func.cast(Vulnerability.severity == 'critical', Integer)),
+                func.sum(func.cast(Vulnerability.severity == 'high', Integer)),
+            ).where(
+                Vulnerability.scan_id == scan_id,
+                Vulnerability.asset_id == asset.id,
+            )
+            counts = await db.execute(vuln_count_query)
+            row = counts.first()
+            vuln_total = row[0] if row else 0
+            vuln_crit = row[1] if row else 0
+            vuln_high = row[2] if row else 0
+            
+            # Obtener servicios del asset
+            service_query = select(Service).where(Service.asset_id == asset.id)
+            service_result = await db.execute(service_query)
+            services = service_result.scalars().all()
+            
+            service_summaries = [
+                ScanServiceSummary(
+                    id=s.id,
+                    port=s.port,
+                    protocol=s.protocol,
+                    service_name=s.service_name,
+                    version=s.version,
+                    state=s.state,
                 )
-                counts = await db.execute(vuln_count_query)
-                row = counts.first()
-                vuln_total = row[0] if row else 0
-                vuln_crit = row[1] if row else 0
-                vuln_high = row[2] if row else 0
+                for s in services
+            ]
+            
+            hosts.append(ScanHostSummary(
+                id=asset.id,
+                ip_address=str(asset.ip_address),
+                hostname=asset.hostname,
+                operating_system=asset.operating_system,
+                status=asset.status,
+                services_count=len(services),
+                vulnerabilities_count=vuln_total or 0,
+                vuln_critical=vuln_crit or 0,
+                vuln_high=vuln_high or 0,
+                services=service_summaries,
+            ))
+    else:
+        # Para otros tipos de scan, buscar por targets directos
+        if scan.targets:
+            for target in scan.targets:
+                # Buscar asset por IP
+                asset_query = select(Asset).where(
+                    Asset.organization_id == current_user.organization_id,
+                    Asset.ip_address == target,
+                )
+                asset_result = await db.execute(asset_query)
+                asset = asset_result.scalar_one_or_none()
                 
-                # Obtener servicios del asset
-                service_query = select(Service).where(Service.asset_id == asset.id)
-                service_result = await db.execute(service_query)
-                services = service_result.scalars().all()
-                
-                service_summaries = [
-                    ScanServiceSummary(
-                        id=s.id,
-                        port=s.port,
-                        protocol=s.protocol,
-                        service_name=s.service_name,
-                        version=s.version,
-                        state=s.state,
+                if asset:
+                    # Contar vulnerabilidades por asset en este scan
+                    vuln_count_query = select(
+                        func.count(Vulnerability.id),
+                        func.sum(func.cast(Vulnerability.severity == 'critical', Integer)),
+                        func.sum(func.cast(Vulnerability.severity == 'high', Integer)),
+                    ).where(
+                        Vulnerability.scan_id == scan_id,
+                        Vulnerability.asset_id == asset.id,
                     )
-                    for s in services
-                ]
-                
-                hosts.append(ScanHostSummary(
-                    id=asset.id,
-                    ip_address=str(asset.ip_address),
-                    hostname=asset.hostname,
-                    operating_system=asset.operating_system,
-                    status=asset.status,
-                    services_count=len(services),
-                    vulnerabilities_count=vuln_total or 0,
-                    vuln_critical=vuln_crit or 0,
-                    vuln_high=vuln_high or 0,
-                    services=service_summaries,
-                ))
+                    counts = await db.execute(vuln_count_query)
+                    row = counts.first()
+                    vuln_total = row[0] if row else 0
+                    vuln_crit = row[1] if row else 0
+                    vuln_high = row[2] if row else 0
+                    
+                    # Obtener servicios del asset
+                    service_query = select(Service).where(Service.asset_id == asset.id)
+                    service_result = await db.execute(service_query)
+                    services = service_result.scalars().all()
+                    
+                    service_summaries = [
+                        ScanServiceSummary(
+                            id=s.id,
+                            port=s.port,
+                            protocol=s.protocol,
+                            service_name=s.service_name,
+                            version=s.version,
+                            state=s.state,
+                        )
+                        for s in services
+                    ]
+                    
+                    hosts.append(ScanHostSummary(
+                        id=asset.id,
+                        ip_address=str(asset.ip_address),
+                        hostname=asset.hostname,
+                        operating_system=asset.operating_system,
+                        status=asset.status,
+                        services_count=len(services),
+                        vulnerabilities_count=vuln_total or 0,
+                        vuln_critical=vuln_crit or 0,
+                        vuln_high=vuln_high or 0,
+                        services=service_summaries,
+                    ))
     
-    # También incluir hosts de scan.results si existe
-    if scan.results and isinstance(scan.results, dict):
-        results_services = scan.results.get("services", [])
-        results_hosts = scan.results.get("hosts", [])
+    # También incluir hosts de scan.raw_output si existe
+    if scan.raw_output and isinstance(scan.raw_output, dict):
+        results_services = scan.raw_output.get("services", [])
+        results_hosts = scan.raw_output.get("hosts", [])
         
         # Si no encontramos assets en DB pero hay hosts en results, usar esos
         if not hosts and results_hosts:
             for i, host_data in enumerate(results_hosts):
-                ip = host_data.get("ip_address", "")
-                hosts.append(ScanHostSummary(
-                    id=f"temp-{i}",  # ID temporal para hosts no persistidos
-                    ip_address=ip,
-                    hostname=host_data.get("hostname"),
-                    operating_system=None,
-                    status="active",
-                    services_count=0,
-                    vulnerabilities_count=0,
-                    vuln_critical=0,
-                    vuln_high=0,
-                    services=[],
-                ))
+                # Manejar distintos formatos: dict con ip_address, ip, o solo un string
+                if isinstance(host_data, str):
+                    ip = host_data
+                    hostname = None
+                else:
+                    ip = host_data.get("ip_address") or host_data.get("ip") or ""
+                    hostname = host_data.get("hostname")
+                
+                if ip:
+                    hosts.append(ScanHostSummary(
+                        id=f"temp-{i}",  # ID temporal para hosts no persistidos
+                        ip_address=ip,
+                        hostname=hostname,
+                        operating_system=host_data.get("os_match") if isinstance(host_data, dict) else None,
+                        status="active",
+                        services_count=0,
+                        vulnerabilities_count=0,
+                        vuln_critical=0,
+                        vuln_high=0,
+                        services=[],
+                    ))
         
         # Si no hay hosts pero hay servicios, crear hosts desde servicios
         if not hosts and results_services:

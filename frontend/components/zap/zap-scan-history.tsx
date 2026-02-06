@@ -73,7 +73,7 @@ const MODE_LABELS = {
   passive: 'Pasivo',
 };
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; className: string; animate?: boolean }> = {
   pending: {
     label: 'Pendiente',
     icon: Clock,

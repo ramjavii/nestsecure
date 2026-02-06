@@ -1,0 +1,1665 @@
+{
+  "config": {
+    "configFile": "/Users/fabianramos/Desktop/NESTSECURE/frontend/playwright.config.ts",
+    "rootDir": "/Users/fabianramos/Desktop/NESTSECURE/frontend/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/fabianramos/Desktop/NESTSECURE/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/fabianramos/Desktop/NESTSECURE/frontend/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "test-results/html-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.1",
+    "workers": 4,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "assets.spec.ts",
+      "file": "assets.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Assets Management",
+          "file": "assets.spec.ts",
+          "line": 7,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display assets list page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "381c53c131d04f5e8243-83a42cc5a2ad9f22be1d",
+              "file": "assets.spec.ts",
+              "line": 17,
+              "column": 7
+            },
+            {
+              "title": "should show empty state or assets list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "381c53c131d04f5e8243-01eb3458e1c84bc9fb17",
+              "file": "assets.spec.ts",
+              "line": 28,
+              "column": 7
+            },
+            {
+              "title": "should have new asset button",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "381c53c131d04f5e8243-9adcc662e27dde753471",
+              "file": "assets.spec.ts",
+              "line": 42,
+              "column": 7
+            },
+            {
+              "title": "should open create asset modal/form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "381c53c131d04f5e8243-eb1282cd328d7c6c8d67",
+              "file": "assets.spec.ts",
+              "line": 53,
+              "column": 7
+            },
+            {
+              "title": "should validate asset creation form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "381c53c131d04f5e8243-ec83a9dee6d53ccf4057",
+              "file": "assets.spec.ts",
+              "line": 72,
+              "column": 7
+            },
+            {
+              "title": "should create a new asset",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "381c53c131d04f5e8243-649bdc6f6450163bd99d",
+              "file": "assets.spec.ts",
+              "line": 95,
+              "column": 7
+            },
+            {
+              "title": "should have search/filter functionality",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "381c53c131d04f5e8243-0bab665c778edd0401e5",
+              "file": "assets.spec.ts",
+              "line": 127,
+              "column": 7
+            },
+            {
+              "title": "should handle pagination if available",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "381c53c131d04f5e8243-6199dd1f2d0450ec8270",
+              "file": "assets.spec.ts",
+              "line": 141,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "auth.spec.ts",
+      "file": "auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentication Flow",
+          "file": "auth.spec.ts",
+          "line": 7,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display login page correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-949a062069719f9f0f2e",
+              "file": "auth.spec.ts",
+              "line": 13,
+              "column": 7
+            },
+            {
+              "title": "should show validation errors for empty fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-4941fe4fbd10571c546d",
+              "file": "auth.spec.ts",
+              "line": 23,
+              "column": 7
+            },
+            {
+              "title": "should show error on invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-a9732f85fc65226974d2",
+              "file": "auth.spec.ts",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "should login successfully with valid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-efd14549b37f77aa6096",
+              "file": "auth.spec.ts",
+              "line": 51,
+              "column": 7
+            },
+            {
+              "title": "should persist session after page reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-0ba4d3134461e51aa28c",
+              "file": "auth.spec.ts",
+              "line": 66,
+              "column": 7
+            },
+            {
+              "title": "should logout successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-c0ce6ccc7b7e02794edb",
+              "file": "auth.spec.ts",
+              "line": 82,
+              "column": 7
+            },
+            {
+              "title": "should redirect unauthenticated users to login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-690e091e2a4ae2daa31f",
+              "file": "auth.spec.ts",
+              "line": 108,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "cve.spec.ts",
+      "file": "cve.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "CVE Database - Search Page",
+          "file": "cve.spec.ts",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display CVE search page with title",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-8a4c9334bdd8c96a30bf",
+              "file": "cve.spec.ts",
+              "line": 18,
+              "column": 7
+            },
+            {
+              "title": "should display CVE statistics cards",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-46afa5d8d14824ecc392",
+              "file": "cve.spec.ts",
+              "line": 31,
+              "column": 7
+            },
+            {
+              "title": "should display search form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-c2faf3bef3c2d0dc17c1",
+              "file": "cve.spec.ts",
+              "line": 48,
+              "column": 7
+            },
+            {
+              "title": "should display severity filter options",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-3e76895bf50469aeeaf5",
+              "file": "cve.spec.ts",
+              "line": 62,
+              "column": 7
+            },
+            {
+              "title": "should display CVE list or empty state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-7377ece97b63b7a28656",
+              "file": "cve.spec.ts",
+              "line": 79,
+              "column": 7
+            },
+            {
+              "title": "should have pagination controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-cc0174fc7be8af5b347e",
+              "file": "cve.spec.ts",
+              "line": 98,
+              "column": 7
+            },
+            {
+              "title": "should show active filters when applied",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-2a82de2c2b5dd3ccd800",
+              "file": "cve.spec.ts",
+              "line": 117,
+              "column": 7
+            },
+            {
+              "title": "should navigate to CVE detail page on click",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-5063896b531b823d3eb2",
+              "file": "cve.spec.ts",
+              "line": 128,
+              "column": 7
+            },
+            {
+              "title": "should handle search with CVE ID format",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-b923fd5837e3602443cb",
+              "file": "cve.spec.ts",
+              "line": 149,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "CVE Database - Detail Page",
+          "file": "cve.spec.ts",
+          "line": 176,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display CVE detail page with valid CVE ID",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-21f24eabdfdd7d1d6613",
+              "file": "cve.spec.ts",
+              "line": 185,
+              "column": 7
+            },
+            {
+              "title": "should show back button on detail page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-4110d463ac7e2a130fbf",
+              "file": "cve.spec.ts",
+              "line": 197,
+              "column": 7
+            },
+            {
+              "title": "should display CVE ID prominently",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-74eefd545223e2452b42",
+              "file": "cve.spec.ts",
+              "line": 211,
+              "column": 7
+            },
+            {
+              "title": "should display tabs for different sections",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-eff35f2b8b69e6d8dcbc",
+              "file": "cve.spec.ts",
+              "line": 226,
+              "column": 7
+            },
+            {
+              "title": "should display CVSS score section",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-d02acc45438153b426d4",
+              "file": "cve.spec.ts",
+              "line": 245,
+              "column": 7
+            },
+            {
+              "title": "should display external links to NVD/MITRE",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-2e45591b0f3435ed65a0",
+              "file": "cve.spec.ts",
+              "line": 266,
+              "column": 7
+            },
+            {
+              "title": "should handle copy CVE ID functionality",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-b2d990a78bb3a6414a13",
+              "file": "cve.spec.ts",
+              "line": 283,
+              "column": 7
+            },
+            {
+              "title": "should navigate between tabs correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-b26b9eefc0e8db47763b",
+              "file": "cve.spec.ts",
+              "line": 298,
+              "column": 7
+            },
+            {
+              "title": "should display error state for invalid CVE ID",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-fd9e3fb8d2482e405f33",
+              "file": "cve.spec.ts",
+              "line": 322,
+              "column": 7
+            },
+            {
+              "title": "should display loading state while fetching data",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-8fa309ef264cd9fc9ba7",
+              "file": "cve.spec.ts",
+              "line": 342,
+              "column": 7
+            },
+            {
+              "title": "should display products affected tab content",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-cab52ef480a517754281",
+              "file": "cve.spec.ts",
+              "line": 359,
+              "column": 7
+            },
+            {
+              "title": "should display technical details tab content",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-9f28ff466b9780fc5175",
+              "file": "cve.spec.ts",
+              "line": 381,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "CVE Database - Navigation",
+          "file": "cve.spec.ts",
+          "line": 410,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should have CVE link in sidebar navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-f09d95a4a8c6930a4ec5",
+              "file": "cve.spec.ts",
+              "line": 419,
+              "column": 7
+            },
+            {
+              "title": "should navigate from sidebar to CVE page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-5a15e923d8b70b343d07",
+              "file": "cve.spec.ts",
+              "line": 434,
+              "column": 7
+            },
+            {
+              "title": "should highlight CVE link when on CVE page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-40916c7a04e61a122415",
+              "file": "cve.spec.ts",
+              "line": 448,
+              "column": 7
+            },
+            {
+              "title": "should navigate back to CVE list from detail page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-f74886d9243c64e30577",
+              "file": "cve.spec.ts",
+              "line": 469,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "CVE Database - Accessibility",
+          "file": "cve.spec.ts",
+          "line": 486,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should have proper heading hierarchy on search page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-4620302f55c1e2dec9a6",
+              "file": "cve.spec.ts",
+              "line": 495,
+              "column": 7
+            },
+            {
+              "title": "should have proper heading hierarchy on detail page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-82e56107b289a321bf56",
+              "file": "cve.spec.ts",
+              "line": 503,
+              "column": 7
+            },
+            {
+              "title": "should have accessible form labels on search page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-fa2cdd25b374d0cfd64f",
+              "file": "cve.spec.ts",
+              "line": 513,
+              "column": 7
+            },
+            {
+              "title": "should have keyboard navigable elements",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-83e08a7fbe5fc02199a6",
+              "file": "cve.spec.ts",
+              "line": 534,
+              "column": 7
+            },
+            {
+              "title": "should have proper ARIA roles on tabs",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "840090de89d6e1b7512a-a3c906035d706effe5a4",
+              "file": "cve.spec.ts",
+              "line": 550,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "dashboard.spec.ts",
+      "file": "dashboard.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Dashboard",
+          "file": "dashboard.spec.ts",
+          "line": 7,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display dashboard with stats cards",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-86b9ea4a20d2ecbcab29",
+              "file": "dashboard.spec.ts",
+              "line": 17,
+              "column": 7
+            },
+            {
+              "title": "should display navigation sidebar",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-0dc49fc41767cd18dd6f",
+              "file": "dashboard.spec.ts",
+              "line": 35,
+              "column": 7
+            },
+            {
+              "title": "should navigate to assets page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-0e6615f080c84f4fdc3d",
+              "file": "dashboard.spec.ts",
+              "line": 56,
+              "column": 7
+            },
+            {
+              "title": "should navigate to scans page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-2307d18fba7d5b1cb66a",
+              "file": "dashboard.spec.ts",
+              "line": 66,
+              "column": 7
+            },
+            {
+              "title": "should show user information in header",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-19d6d71ab457ceaf34df",
+              "file": "dashboard.spec.ts",
+              "line": 76,
+              "column": 7
+            },
+            {
+              "title": "should be responsive on mobile viewport",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-56be79b45ecdaab2b6c2",
+              "file": "dashboard.spec.ts",
+              "line": 91,
+              "column": 7
+            },
+            {
+              "title": "should display charts or visualizations",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-237e4842179c6c0d4e01",
+              "file": "dashboard.spec.ts",
+              "line": 107,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "scans.spec.ts",
+      "file": "scans.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Scans Management",
+          "file": "scans.spec.ts",
+          "line": 7,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display scans list page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-7d525ee6f6447239484d",
+              "file": "scans.spec.ts",
+              "line": 17,
+              "column": 7
+            },
+            {
+              "title": "should show empty state or scans list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-3f4dc41142bebd058d8d",
+              "file": "scans.spec.ts",
+              "line": 28,
+              "column": 7
+            },
+            {
+              "title": "should have new scan button",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-af56e1fccc421b8f321d",
+              "file": "scans.spec.ts",
+              "line": 42,
+              "column": 7
+            },
+            {
+              "title": "should open create scan modal/form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-8464bcb7c95319986038",
+              "file": "scans.spec.ts",
+              "line": 53,
+              "column": 7
+            },
+            {
+              "title": "should show scan type options",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-7f6e5fccbd9a81405f12",
+              "file": "scans.spec.ts",
+              "line": 72,
+              "column": 7
+            },
+            {
+              "title": "should validate scan target input",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-3b0d373411d506c5496f",
+              "file": "scans.spec.ts",
+              "line": 95,
+              "column": 7
+            },
+            {
+              "title": "should create a scan with valid data",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-42f348bc0507d72773fd",
+              "file": "scans.spec.ts",
+              "line": 125,
+              "column": 7
+            },
+            {
+              "title": "should display scan status badges",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-3dfda8de9cd213749c68",
+              "file": "scans.spec.ts",
+              "line": 158,
+              "column": 7
+            },
+            {
+              "title": "should navigate to scan detail",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-29f5aceec82ef1fb63e1",
+              "file": "scans.spec.ts",
+              "line": 179,
+              "column": 7
+            },
+            {
+              "title": "should show scan filters",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "64ca785fa5eee6d9e74a-93e41c3b7fe0141d4c21",
+              "file": "scans.spec.ts",
+              "line": 201,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "vulnerabilities.spec.ts",
+      "file": "vulnerabilities.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Vulnerabilities Management",
+          "file": "vulnerabilities.spec.ts",
+          "line": 7,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display vulnerabilities list page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-5e651ca3722ff78a2b77",
+              "file": "vulnerabilities.spec.ts",
+              "line": 17,
+              "column": 7
+            },
+            {
+              "title": "should show empty state or vulnerabilities list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-052f11ed3ffceca6214a",
+              "file": "vulnerabilities.spec.ts",
+              "line": 28,
+              "column": 7
+            },
+            {
+              "title": "should display severity filters",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-b990979badb92a0e999c",
+              "file": "vulnerabilities.spec.ts",
+              "line": 43,
+              "column": 7
+            },
+            {
+              "title": "should display status filters",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-c28859b021632d5e9be5",
+              "file": "vulnerabilities.spec.ts",
+              "line": 65,
+              "column": 7
+            },
+            {
+              "title": "should show severity badges with colors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-08e5770ba666f8afcfe7",
+              "file": "vulnerabilities.spec.ts",
+              "line": 82,
+              "column": 7
+            },
+            {
+              "title": "should have search functionality",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-6c80a6c5b5f6cb7df90a",
+              "file": "vulnerabilities.spec.ts",
+              "line": 95,
+              "column": 7
+            },
+            {
+              "title": "should filter by CVE if available",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-0256c3c367f1f0a1ec7d",
+              "file": "vulnerabilities.spec.ts",
+              "line": 105,
+              "column": 7
+            },
+            {
+              "title": "should display CVSS scores",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-10529ea5a55d0adf8065",
+              "file": "vulnerabilities.spec.ts",
+              "line": 120,
+              "column": 7
+            },
+            {
+              "title": "should navigate to vulnerability detail",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-98458cd6247764176d98",
+              "file": "vulnerabilities.spec.ts",
+              "line": 137,
+              "column": 7
+            },
+            {
+              "title": "should support pagination",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-f8a4e7bced7a74b280af",
+              "file": "vulnerabilities.spec.ts",
+              "line": 157,
+              "column": 7
+            },
+            {
+              "title": "should show vulnerability count",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "5fbb3284dd034d65d20c-093346b43e696aa7b763",
+              "file": "vulnerabilities.spec.ts",
+              "line": 172,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-02-05T19:16:43.160Z",
+    "duration": 106.36599999999999,
+    "expected": 0,
+    "skipped": 73,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

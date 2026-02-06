@@ -34,7 +34,7 @@ import type { ScanType } from '@/types';
 const scanSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
   description: z.string().optional(),
-  scan_type: z.enum(['discovery', 'port_scan', 'vulnerability', 'full']),
+  scan_type: z.enum(['discovery', 'port_scan', 'service_scan', 'vulnerability', 'full', 'nuclei', 'zap', 'openvas']),
   targets: z.string().min(1, 'Debes especificar al menos un target'),
   port_range: z.string().optional(),
   scheduled: z.boolean().default(false),
@@ -48,11 +48,15 @@ interface ScanFormModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const scanTypes: { value: ScanType; label: string; description: string }[] = [
+const scanTypes: { value: ScanFormData['scan_type']; label: string; description: string }[] = [
   { value: 'discovery', label: 'Descubrimiento', description: 'Detecta hosts activos en la red' },
   { value: 'port_scan', label: 'Puertos y Servicios', description: 'Identifica puertos abiertos, servicios y versiones' },
-  { value: 'vulnerability', label: 'Vulnerabilidades', description: 'Busca vulnerabilidades conocidas con Nmap NSE' },
+  { value: 'service_scan', label: 'Detección de Servicios', description: 'Identifica servicios y versiones en detalle' },
+  { value: 'vulnerability', label: 'Vulnerabilidades (Nmap)', description: 'Busca vulnerabilidades conocidas con Nmap NSE' },
   { value: 'full', label: 'Completo', description: 'Escaneo completo: todos los puertos (65535)' },
+  { value: 'nuclei', label: 'Nuclei', description: 'Escaneo de vulnerabilidades con templates Nuclei' },
+  { value: 'zap', label: 'OWASP ZAP', description: 'Escaneo DAST para aplicaciones web' },
+  { value: 'openvas', label: 'OpenVAS', description: 'Escaneo completo con OpenVAS/GVM' },
 ];
 
 export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
@@ -133,7 +137,7 @@ export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
       await createScan.mutateAsync({
         name: data.name,
         description: data.description,
-        scan_type: data.scan_type,
+        scan_type: data.scan_type as ScanType,
         targets,
         port_range: data.port_range,
         scheduled: data.scheduled,

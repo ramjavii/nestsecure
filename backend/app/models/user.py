@@ -20,6 +20,7 @@ from app.db.base import Base, TimestampMixin, UUID, JSONB
 
 if TYPE_CHECKING:
     from app.models.organization import Organization
+    from app.models.report import Report
 
 
 class UserRole(str, Enum):
@@ -112,6 +113,12 @@ class User(Base, TimestampMixin):
     organization: Mapped["Organization"] = relationship(
         "Organization",
         back_populates="users",
+    )
+    
+    reports: Mapped[list["Report"]] = relationship(
+        "Report",
+        back_populates="created_by",
+        lazy="selectin",
     )
     
     # -------------------------------------------------------------------------

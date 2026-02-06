@@ -38,3 +38,31 @@ export function useHealthStatus() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 }
+
+/**
+ * Hook for fetching top vulnerabilities for dashboard
+ * Fetches critical and high severity vulnerabilities, sorted by severity
+ */
+export function useTopVulnerabilities(limit: number = 5) {
+  return useQuery({
+    queryKey: ['dashboard', 'top-vulnerabilities', limit],
+    queryFn: async () => {
+      // First try critical
+      const critical = await api.getVulnerabilities({ 
+        severity: 'critical', 
+        status: 'open' 
+      });
+      
+      // Then high
+      const high = await api.getVulnerabilities({ 
+        severity: 'high', 
+        status: 'open' 
+      });
+      
+      // Combine and limit
+      const combined = [...(critical || []), ...(high || [])];
+      return combined.slice(0, limit);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}

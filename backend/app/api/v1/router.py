@@ -21,12 +21,12 @@ from fastapi import APIRouter
 
 from app.api.v1.assets import router as assets_router
 from app.api.v1.auth import router as auth_router
-from app.api.v1.correlation import router as correlation_router
 from app.api.v1.cve import router as cve_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.network import router as network_router
 from app.api.v1.nuclei import router as nuclei_router
 from app.api.v1.organizations import router as organizations_router
+from app.api.v1.reports import router as reports_router
 from app.api.v1.scans import router as scans_router
 from app.api.v1.services import router as services_router
 from app.api.v1.users import router as users_router
@@ -104,15 +104,15 @@ api_router.include_router(
 )
 
 api_router.include_router(
-    correlation_router,
-    prefix="/correlation",
-    tags=["Correlation"],
-)
-
-api_router.include_router(
     zap_router,
     prefix="/zap",
     tags=["ZAP"],
+)
+
+api_router.include_router(
+    reports_router,
+    prefix="/reports",
+    tags=["Reports"],
 )
 
 # Health check para la API (útil para load balancers)

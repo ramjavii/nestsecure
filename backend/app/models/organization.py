@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from app.models.asset import Asset
     from app.models.scan import Scan
     from app.models.vulnerability import Vulnerability
+    from app.models.report import Report
 
 
 class Organization(Base, TimestampMixin):
@@ -135,6 +136,13 @@ class Organization(Base, TimestampMixin):
     
     vulnerabilities: Mapped[list["Vulnerability"]] = relationship(
         "Vulnerability",
+        back_populates="organization",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+    
+    reports: Mapped[list["Report"]] = relationship(
+        "Report",
         back_populates="organization",
         lazy="selectin",
         cascade="all, delete-orphan",

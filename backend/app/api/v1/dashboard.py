@@ -91,17 +91,34 @@ async def get_dashboard_stats(
     services_row = services_result.one()
     
     # -------------------------------------------------------------------------
-    # Vulnerabilities Summary
+    # Vulnerabilities Summary (deduplicadas por nombre)
     # -------------------------------------------------------------------------
-    vuln_query = select(
-        func.sum(Asset.vuln_critical_count).label("critical"),
-        func.sum(Asset.vuln_high_count).label("high"),
-        func.sum(Asset.vuln_medium_count).label("medium"),
-        func.sum(Asset.vuln_low_count).label("low"),
-    ).where(Asset.organization_id == org_id)
+    # Primero obtenemos todas las vulnerabilidades
+    from app.models.vulnerability import Vulnerability
     
-    vuln_result = await db.execute(vuln_query)
-    vuln_row = vuln_result.one()
+    all_vulns_query = select(Vulnerability).where(
+        Vulnerability.organization_id == org_id
+    ).order_by(Vulnerability.severity.desc())
+    
+    all_vulns_result = await db.execute(all_vulns_query)
+    all_vulns = all_vulns_result.scalars().all()
+    
+    # Deduplicar por nombre
+    seen_names = set()
+    unique_vulns = []
+    for v in all_vulns:
+        if v.name not in seen_names:
+            seen_names.add(v.name)
+            unique_vulns.append(v)
+    
+    # Contar por severidad
+    vuln_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+    for v in unique_vulns:
+        sev = v.severity.lower() if v.severity else "info"
+        if sev in vuln_counts:
+            vuln_counts[sev] += 1
+        else:
+            vuln_counts["info"] += 1
     
     # -------------------------------------------------------------------------
     # Recent Activity (últimos 7 días)
@@ -148,12 +165,11 @@ async def get_dashboard_stats(
             "with_ssl": services_row.with_ssl or 0,
         },
         "vulnerabilities": {
-            "critical": int(vuln_row.critical or 0),
-            "high": int(vuln_row.high or 0),
-            "medium": int(vuln_row.medium or 0),
-            "low": int(vuln_row.low or 0),
-            "total": int((vuln_row.critical or 0) + (vuln_row.high or 0) + 
-                        (vuln_row.medium or 0) + (vuln_row.low or 0)),
+            "critical": vuln_counts["critical"],
+            "high": vuln_counts["high"],
+            "medium": vuln_counts["medium"],
+            "low": vuln_counts["low"],
+            "total": len(unique_vulns),
         },
         "risk": {
             "average_score": round(float(assets_row.avg_risk_score or 0), 2),

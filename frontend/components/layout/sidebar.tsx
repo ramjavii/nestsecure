@@ -35,7 +35,6 @@ const navItems = [
   { href: '/scans', label: 'Escaneos', icon: Radar },
   { href: '/assets', label: 'Assets', icon: Server },
   { href: '/vulnerabilities', label: 'Vulnerabilidades', icon: AlertTriangle },
-  { href: '/cve', label: 'Base de Datos CVE', icon: Database },
   { href: '/reports', label: 'Reportes', icon: FileText },
   { href: '/settings', label: 'Configuración', icon: Settings },
 ];

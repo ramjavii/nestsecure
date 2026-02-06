@@ -221,7 +221,18 @@ __turbopack_context__.s([
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$stores$2f$auth$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/stores/auth-store.ts [app-ssr] (ecmascript)");
 ;
-const API_BASE_URL = ("TURBOPACK compile-time value", "http://localhost:8000/api/v1") || 'http://localhost:8000/api/v1';
+/**
+ * Obtener la URL base de la API según el entorno
+ * - En el servidor (SSR): usar la URL interna de Docker (backend:8000)
+ * - En el cliente (browser): usar localhost o la URL pública
+ */ function getApiBaseUrl() {
+    // En el cliente (browser)
+    if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+    ;
+    // En el servidor (SSR/API routes) - usar URL interna de Docker
+    return ("TURBOPACK compile-time value", "http://localhost:8000/api/v1") || 'http://localhost:8000/api/v1';
+}
+const API_BASE_URL = getApiBaseUrl();
 class ApiClient {
     baseUrl;
     constructor(baseUrl){
@@ -318,8 +329,10 @@ class ApiClient {
     async getScans(params) {
         const searchParams = new URLSearchParams();
         if (params?.status) searchParams.append('status', params.status);
-        if (params?.type) searchParams.append('type', params.type);
+        if (params?.type) searchParams.append('scan_type', params.type);
         if (params?.search) searchParams.append('search', params.search);
+        if (params?.page) searchParams.append('page', params.page.toString());
+        if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
         const query = searchParams.toString();
         return this.request(`/scans${query ? `?${query}` : ''}`);
     }
@@ -342,6 +355,20 @@ class ApiClient {
             method: 'DELETE'
         });
     }
+    async getScanResults(id, params) {
+        const searchParams = new URLSearchParams();
+        if (params?.page) searchParams.append('page', params.page.toString());
+        if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+        if (params?.min_severity) searchParams.append('min_severity', params.min_severity.toString());
+        const query = searchParams.toString();
+        return this.request(`/scans/${id}/results${query ? `?${query}` : ''}`);
+    }
+    async getScanHosts(id) {
+        return this.request(`/scans/${id}/hosts`);
+    }
+    async getScanLogs(id) {
+        return this.request(`/scans/${id}/logs`);
+    }
     // Assets
     async getAssets(params) {
         const searchParams = new URLSearchParams();
@@ -349,6 +376,8 @@ class ApiClient {
         if (params?.criticality) searchParams.append('criticality', params.criticality);
         if (params?.status) searchParams.append('status', params.status);
         if (params?.search) searchParams.append('search', params.search);
+        if (params?.page) searchParams.append('page', params.page.toString());
+        if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
         const query = searchParams.toString();
         return this.request(`/assets${query ? `?${query}` : ''}`);
     }
@@ -405,9 +434,432 @@ class ApiClient {
     async getUsers() {
         return this.request('/users');
     }
+    async getUser(userId) {
+        return this.request(`/users/${userId}`);
+    }
+    async getCurrentUser() {
+        return this.request('/users/me');
+    }
+    async updateUser(userId, payload) {
+        return this.request(`/users/${userId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        });
+    }
+    async changePassword(userId, payload) {
+        return this.request(`/users/${userId}/password`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        });
+    }
     // Health
     async getHealthStatus() {
         return this.request('/health/services');
+    }
+    // ==========================================================================
+    // CVE Endpoints
+    // ==========================================================================
+    /**
+   * Search CVEs with filters and pagination
+   */ async searchCVEs(params) {
+        const searchParams = new URLSearchParams();
+        if (params?.search) searchParams.append('search', params.search);
+        if (params?.severity) searchParams.append('severity', params.severity);
+        if (params?.min_cvss !== undefined) searchParams.append('min_cvss', params.min_cvss.toString());
+        if (params?.max_cvss !== undefined) searchParams.append('max_cvss', params.max_cvss.toString());
+        if (params?.has_exploit !== undefined) searchParams.append('has_exploit', params.has_exploit.toString());
+        if (params?.in_cisa_kev !== undefined) searchParams.append('in_cisa_kev', params.in_cisa_kev.toString());
+        if (params?.vendor) searchParams.append('vendor', params.vendor);
+        if (params?.product) searchParams.append('product', params.product);
+        if (params?.published_after) searchParams.append('published_after', params.published_after);
+        if (params?.published_before) searchParams.append('published_before', params.published_before);
+        if (params?.page) searchParams.append('page', params.page.toString());
+        if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+        const query = searchParams.toString();
+        return this.request(`/cve${query ? `?${query}` : ''}`);
+    }
+    /**
+   * Get a specific CVE by ID (e.g., CVE-2024-1234)
+   */ async getCVE(cveId) {
+        return this.request(`/cve/${encodeURIComponent(cveId)}`);
+    }
+    /**
+   * Lookup multiple CVEs at once
+   */ async lookupCVEs(cveIds) {
+        return this.request('/cve/lookup', {
+            method: 'POST',
+            body: JSON.stringify({
+                cve_ids: cveIds
+            })
+        });
+    }
+    /**
+   * Get CVE statistics
+   */ async getCVEStats() {
+        return this.request('/cve/stats');
+    }
+    /**
+   * Trigger CVE sync from NVD (Admin only)
+   */ async syncCVEs(params) {
+        return this.request('/cve/sync', {
+            method: 'POST',
+            body: JSON.stringify(params || {})
+        });
+    }
+    /**
+   * Get CVE sync status
+   */ async getCVESyncStatus() {
+        return this.request('/cve/sync/status');
+    }
+    /**
+   * Get CVEs related to a specific vulnerability
+   */ async getVulnerabilityCVE(vulnerabilityId) {
+        try {
+            return await this.request(`/vulnerabilities/${vulnerabilityId}/cve`);
+        } catch  {
+            return null;
+        }
+    }
+    /**
+   * Get trending CVEs (most accessed/critical)
+   */ async getTrendingCVEs(limit = 10) {
+        return this.request(`/cve/trending?limit=${limit}`);
+    }
+    /**
+   * Get CVEs in CISA KEV (Known Exploited Vulnerabilities)
+   */ async getKEVCVEs(params) {
+        const searchParams = new URLSearchParams();
+        searchParams.append('in_cisa_kev', 'true');
+        if (params?.page) searchParams.append('page', params.page.toString());
+        if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+        return this.request(`/cve?${searchParams.toString()}`);
+    }
+    /**
+   * Get CVEs with known exploits
+   */ async getExploitableCVEs(params) {
+        const searchParams = new URLSearchParams();
+        searchParams.append('has_exploit', 'true');
+        if (params?.page) searchParams.append('page', params.page.toString());
+        if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+        return this.request(`/cve?${searchParams.toString()}`);
+    }
+    // ==========================================================================
+    // Network Validation
+    // ==========================================================================
+    /**
+   * Validate a scan target (IP or CIDR)
+   * Only private networks (RFC 1918) are allowed
+   */ async validateTarget(target) {
+        return this.request('/network/validate', {
+            method: 'POST',
+            body: JSON.stringify({
+                target
+            })
+        });
+    }
+    /**
+   * Validate multiple scan targets at once
+   */ async validateMultipleTargets(targets) {
+        return this.request('/network/validate-multiple', {
+            method: 'POST',
+            body: JSON.stringify({
+                targets
+            })
+        });
+    }
+    /**
+   * Get information about a CIDR network
+   */ async getNetworkInfo(cidr) {
+        return this.request(`/network/info/${encodeURIComponent(cidr)}`);
+    }
+    /**
+   * Get allowed private IP ranges for scanning
+   */ async getPrivateRanges() {
+        return this.request('/network/private-ranges');
+    }
+    /**
+   * Check if an IP is private (can be scanned)
+   */ async checkIP(ip) {
+        return this.request(`/network/check-ip/${encodeURIComponent(ip)}`);
+    }
+    // ===========================================================================
+    // CORRELATION API
+    // ===========================================================================
+    /**
+   * Correlate a service with CVEs from NVD
+   */ async correlateService(serviceId, options) {
+        return this.request(`/correlation/services/${serviceId}/correlate`, {
+            method: 'POST',
+            body: JSON.stringify({
+                auto_create_vuln: options?.autoCreateVuln ?? true,
+                max_cves: options?.maxCves ?? 10
+            })
+        });
+    }
+    /**
+   * Correlate all services of a scan with CVEs
+   */ async correlateScan(scanId, options) {
+        const params = new URLSearchParams();
+        if (options?.autoCreate !== undefined) {
+            params.set('auto_create', String(options.autoCreate));
+        }
+        if (options?.maxCvesPerService) {
+            params.set('max_cves_per_service', String(options.maxCvesPerService));
+        }
+        return this.request(`/correlation/scans/${scanId}/correlate?${params}`, {
+            method: 'POST'
+        });
+    }
+    /**
+   * Correlate all services of an asset with CVEs
+   */ async correlateAsset(assetId, autoCreate = true) {
+        return this.request(`/correlation/assets/${assetId}/correlate?auto_create=${autoCreate}`, {
+            method: 'POST'
+        });
+    }
+    /**
+   * Get CPE information for a service
+   */ async getServiceCPE(serviceId) {
+        return this.request(`/correlation/cpe/${serviceId}`);
+    }
+    // ==========================================================================
+    // NUCLEI SCANNING API
+    // ==========================================================================
+    /**
+   * Start a Nuclei vulnerability scan
+   */ async startNucleiScan(params) {
+        return this.request('/nuclei/scan', {
+            method: 'POST',
+            body: JSON.stringify(params)
+        });
+    }
+    /**
+   * Get Nuclei scan status
+   */ async getNucleiScanStatus(taskId) {
+        return this.request(`/nuclei/scan/${taskId}`);
+    }
+    /**
+   * Get Nuclei scan results
+   */ async getNucleiScanResults(taskId, options) {
+        const params = new URLSearchParams();
+        if (options?.page) params.set('page', String(options.page));
+        if (options?.page_size) params.set('page_size', String(options.page_size));
+        if (options?.severity) params.set('severity', options.severity);
+        const query = params.toString();
+        return this.request(`/nuclei/scan/${taskId}/results${query ? `?${query}` : ''}`);
+    }
+    /**
+   * Get available Nuclei scan profiles
+   */ async getNucleiProfiles() {
+        return this.request('/nuclei/profiles');
+    }
+    /**
+   * Quick Nuclei scan (critical vulnerabilities only)
+   */ async nucleiQuickScan(target, scanName) {
+        return this.request('/nuclei/quick', {
+            method: 'POST',
+            body: JSON.stringify({
+                target,
+                scan_name: scanName
+            })
+        });
+    }
+    /**
+   * CVE-focused Nuclei scan
+   */ async nucleiCVEScan(target, cves, scanName) {
+        return this.request('/nuclei/cve', {
+            method: 'POST',
+            body: JSON.stringify({
+                target,
+                cves,
+                scan_name: scanName
+            })
+        });
+    }
+    /**
+   * Web vulnerability Nuclei scan
+   */ async nucleiWebScan(target, scanName) {
+        return this.request('/nuclei/web', {
+            method: 'POST',
+            body: JSON.stringify({
+                target,
+                scan_name: scanName
+            })
+        });
+    }
+    /**
+   * Cancel a running Nuclei scan
+   */ async cancelNucleiScan(taskId) {
+        return this.request(`/nuclei/scan/${taskId}/cancel`, {
+            method: 'POST'
+        });
+    }
+    /**
+   * Get Nuclei scanner health/status
+   */ async getNucleiHealth() {
+        return this.request('/nuclei/health');
+    }
+    // =========================================================================
+    // ZAP API
+    // =========================================================================
+    /**
+   * Start a ZAP scan
+   */ async startZapScan(params) {
+        return this.request('/zap/scan', {
+            method: 'POST',
+            body: JSON.stringify(params)
+        });
+    }
+    /**
+   * Get ZAP scan status
+   */ async getZapScanStatus(taskId) {
+        return this.request(`/zap/scan/${taskId}`);
+    }
+    /**
+   * Get ZAP scan results
+   */ async getZapScanResults(taskId) {
+        return this.request(`/zap/scan/${taskId}/results`);
+    }
+    /**
+   * Cancel a ZAP scan
+   */ async cancelZapScan(taskId) {
+        return this.request(`/zap/scan/${taskId}`, {
+            method: 'DELETE'
+        });
+    }
+    /**
+   * Quick ZAP scan (Spider + Passive only)
+   */ async zapQuickScan(targetUrl, assetId) {
+        return this.request('/zap/quick', {
+            method: 'POST',
+            body: JSON.stringify({
+                target_url: targetUrl,
+                asset_id: assetId
+            })
+        });
+    }
+    /**
+   * Full ZAP scan (Spider + Ajax Spider + Active Scan)
+   */ async zapFullScan(targetUrl, assetId) {
+        return this.request('/zap/full', {
+            method: 'POST',
+            body: JSON.stringify({
+                target_url: targetUrl,
+                asset_id: assetId
+            })
+        });
+    }
+    /**
+   * ZAP API scan (for REST/GraphQL APIs)
+   */ async zapApiScan(targetUrl, openapiUrl, assetId) {
+        return this.request('/zap/api', {
+            method: 'POST',
+            body: JSON.stringify({
+                target_url: targetUrl,
+                openapi_url: openapiUrl,
+                asset_id: assetId
+            })
+        });
+    }
+    /**
+   * ZAP SPA scan (for Single Page Applications)
+   */ async zapSpaScan(targetUrl, assetId) {
+        return this.request('/zap/spa', {
+            method: 'POST',
+            body: JSON.stringify({
+                target_url: targetUrl,
+                asset_id: assetId
+            })
+        });
+    }
+    /**
+   * Get ZAP scan profiles
+   */ async getZapProfiles() {
+        return this.request('/zap/profiles');
+    }
+    /**
+   * Get ZAP version and status
+   */ async getZapVersion() {
+        return this.request('/zap/version');
+    }
+    /**
+   * Get current ZAP alerts
+   */ async getZapAlerts(options) {
+        const params = new URLSearchParams();
+        if (options?.base_url) params.set('base_url', options.base_url);
+        if (options?.risk !== undefined) params.set('risk', String(options.risk));
+        if (options?.start !== undefined) params.set('start', String(options.start));
+        if (options?.count !== undefined) params.set('count', String(options.count));
+        const query = params.toString();
+        return this.request(`/zap/alerts${query ? `?${query}` : ''}`);
+    }
+    /**
+   * Get ZAP alerts summary
+   */ async getZapAlertsSummary(baseUrl) {
+        const params = baseUrl ? `?base_url=${encodeURIComponent(baseUrl)}` : '';
+        return this.request(`/zap/alerts/summary${params}`);
+    }
+    /**
+   * Clear ZAP session
+   */ async clearZapSession() {
+        return this.request('/zap/clear', {
+            method: 'POST'
+        });
+    }
+    // ==========================================================================
+    // Reports Endpoints
+    // ==========================================================================
+    /**
+   * Get reports list
+   */ async getReports(params) {
+        const searchParams = new URLSearchParams();
+        if (params?.report_type) searchParams.set('report_type', params.report_type);
+        if (params?.status) searchParams.set('status', params.status);
+        if (params?.page) searchParams.set('page', String(params.page));
+        if (params?.page_size) searchParams.set('page_size', String(params.page_size));
+        const query = searchParams.toString();
+        return this.request(`/reports${query ? `?${query}` : ''}`);
+    }
+    /**
+   * Generate new report
+   */ async generateReport(payload) {
+        return this.request('/reports/generate', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    }
+    /**
+   * Get report detail
+   */ async getReport(id) {
+        return this.request(`/reports/${id}`);
+    }
+    /**
+   * Get report download URL
+   */ getReportDownloadUrl(id) {
+        const { accessToken } = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$stores$2f$auth$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAuthStore"].getState();
+        // For direct download we return the URL with auth in headers handled separately
+        return `${this.baseUrl}/reports/${id}/download`;
+    }
+    /**
+   * Download report (returns blob)
+   */ async downloadReport(id) {
+        const { accessToken } = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$stores$2f$auth$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAuthStore"].getState();
+        const response = await fetch(`${this.baseUrl}/reports/${id}/download`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        if (!response.ok) {
+            throw new Error('Failed to download report');
+        }
+        return response.blob();
+    }
+    /**
+   * Delete report
+   */ async deleteReport(id) {
+        return this.request(`/reports/${id}`, {
+            method: 'DELETE'
+        });
     }
 }
 const api = new ApiClient(API_BASE_URL);

@@ -1148,6 +1148,7 @@ def execute_scan_task(
                         
                         if existing:
                             existing.last_seen = now
+                            existing.last_scanned = now
                             existing.is_reachable = True
                             if host_data.get("hostname") and not existing.hostname:
                                 existing.hostname = host_data["hostname"]
@@ -1161,6 +1162,7 @@ def execute_scan_task(
                                 is_reachable=True,
                                 first_seen=now,
                                 last_seen=now,
+                                last_scanned=now,
                                 risk_score=0.0,
                             )
                             db.add(new_asset)
@@ -1184,6 +1186,7 @@ def execute_scan_task(
                     db.commit()
             
             result["hosts_scanned"] = len(all_hosts)
+            result["hosts"] = all_hosts  # Guardar lista de hosts para el endpoint
             scan.total_hosts_scanned = total_targets
             scan.total_hosts_up = len(all_hosts)
             

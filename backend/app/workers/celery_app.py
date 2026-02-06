@@ -105,15 +105,15 @@ celery_app.conf.update(
     # Beat Schedule (tareas periódicas)
     # -------------------------------------------------------------------------
     beat_schedule={
-        # Limpieza diaria de assets inactivos
-        "cleanup-stale-assets": {
-            "task": "app.workers.cleanup_worker.cleanup_stale_assets",
+        # Limpieza diaria de scans antiguos
+        "cleanup-old-scans": {
+            "task": "cleanup.old_scans",
             "schedule": 86400,  # Cada 24 horas
         },
-        # Actualización de CVE cache
-        "update-cve-cache": {
-            "task": "app.workers.cve_worker.update_cve_cache",
-            "schedule": 43200,  # Cada 12 horas
+        # Limpieza de tokens expirados
+        "cleanup-expired-tokens": {
+            "task": "cleanup.expired_tokens",
+            "schedule": 3600,  # Cada hora
         },
     },
 )

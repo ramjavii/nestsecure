@@ -271,6 +271,8 @@ class ApiClient {
     search?: string;
     sort_by?: string;
     sort_order?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
   }): Promise<Vulnerability[]> {
     const searchParams = new URLSearchParams();
     if (params?.severity) searchParams.append('severity', params.severity);
@@ -278,6 +280,8 @@ class ApiClient {
     if (params?.search) searchParams.append('search', params.search);
     if (params?.sort_by) searchParams.append('sort_by', params.sort_by);
     if (params?.sort_order) searchParams.append('sort_order', params.sort_order);
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('page_size', params.limit.toString());
     
     const query = searchParams.toString();
     return this.request<Vulnerability[]>(`/vulnerabilities${query ? `?${query}` : ''}`);
@@ -297,6 +301,37 @@ class ApiClient {
   // Users
   async getUsers(): Promise<User[]> {
     return this.request<User[]>('/users');
+  }
+
+  async getUser(userId: string): Promise<User> {
+    return this.request<User>(`/users/${userId}`);
+  }
+
+  async getCurrentUser(): Promise<User> {
+    return this.request<User>('/users/me');
+  }
+
+  async updateUser(userId: string, payload: { 
+    full_name?: string; 
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    is_active?: boolean;
+  }): Promise<User> {
+    return this.request<User>(`/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async changePassword(userId: string, payload: {
+    current_password: string;
+    new_password: string;
+  }): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/users/${userId}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
   }
 
   // Health
@@ -1072,6 +1107,125 @@ class ApiClient {
   async clearZapSession(): Promise<void> {
     return this.request('/zap/clear', {
       method: 'POST',
+    });
+  }
+
+  // ==========================================================================
+  // Reports Endpoints
+  // ==========================================================================
+
+  /**
+   * Get reports list
+   */
+  async getReports(params?: {
+    report_type?: string;
+    status?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    reports: Array<{
+      id: string;
+      name: string;
+      report_type: string;
+      format: string;
+      status: string;
+      created_at: string;
+      completed_at?: string;
+      is_downloadable: boolean;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.report_type) searchParams.set('report_type', params.report_type);
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.page_size) searchParams.set('page_size', String(params.page_size));
+
+    const query = searchParams.toString();
+    return this.request(`/reports${query ? `?${query}` : ''}`);
+  }
+
+  /**
+   * Generate new report
+   */
+  async generateReport(payload: {
+    name: string;
+    report_type: string;
+    format: string;
+    description?: string;
+    date_from?: string;
+    date_to?: string;
+    severity_filter?: string[];
+    status_filter?: string[];
+    asset_ids?: string[];
+  }): Promise<{
+    id: string;
+    status: string;
+    message: string;
+  }> {
+    return this.request('/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  /**
+   * Get report detail
+   */
+  async getReport(id: string): Promise<{
+    id: string;
+    name: string;
+    report_type: string;
+    format: string;
+    status: string;
+    description?: string;
+    file_size?: number;
+    parameters?: Record<string, unknown>;
+    error_message?: string;
+    completed_at?: string;
+    created_by_id?: string;
+    is_downloadable: boolean;
+    created_at: string;
+    updated_at: string;
+  }> {
+    return this.request(`/reports/${id}`);
+  }
+
+  /**
+   * Get report download URL
+   */
+  getReportDownloadUrl(id: string): string {
+    const { accessToken } = useAuthStore.getState();
+    // For direct download we return the URL with auth in headers handled separately
+    return `${this.baseUrl}/reports/${id}/download`;
+  }
+
+  /**
+   * Download report (returns blob)
+   */
+  async downloadReport(id: string): Promise<Blob> {
+    const { accessToken } = useAuthStore.getState();
+    const response = await fetch(`${this.baseUrl}/reports/${id}/download`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download report');
+    }
+
+    return response.blob();
+  }
+
+  /**
+   * Delete report
+   */
+  async deleteReport(id: string): Promise<{ message: string; deleted_id: string }> {
+    return this.request(`/reports/${id}`, {
+      method: 'DELETE',
     });
   }
 }

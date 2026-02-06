@@ -15,6 +15,7 @@ import {
   Trash2,
   Radar,
   Activity,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,8 +37,10 @@ import { CriticalityBadge } from '@/components/shared/criticality-badge';
 import { ProgressBar } from '@/components/shared/progress-bar';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
-import { useAsset, useAssetServices, useAssetVulnerabilities, useDeleteAsset } from '@/hooks/use-assets';
+import { useAsset, useAssetServices, useAssetVulnerabilities, useAssetScans, useDeleteAsset } from '@/hooks/use-assets';
 import { useToast } from '@/hooks/use-toast';
+import { NucleiScanButton } from '@/components/nuclei/nuclei-scan-button';
+import { ZapScanButton } from '@/components/zap/zap-scan-button';
 import type { Asset, Service, Vulnerability, Scan } from '@/types';
 
 interface AssetDetailPageProps {
@@ -69,6 +72,7 @@ export default function AssetDetailPage({ params }: AssetDetailPageProps) {
   const { data: asset, isLoading: assetLoading } = useAsset(id);
   const { data: services } = useAssetServices(id);
   const { data: vulnerabilities } = useAssetVulnerabilities(id);
+  const { data: scansHistory } = useAssetScans(id);
   const deleteAsset = useDeleteAsset();
   const { toast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -77,6 +81,7 @@ export default function AssetDetailPage({ params }: AssetDetailPageProps) {
   const displayAsset = asset || emptyAsset;
   const displayServices = services || [];
   const displayVulns = vulnerabilities || [];
+  const displayScans = scansHistory || [];
 
   const handleDeleteAsset = async () => {
     try {
@@ -137,15 +142,47 @@ export default function AssetDetailPage({ params }: AssetDetailPageProps) {
             {displayAsset.hostname && (
               <p className="text-muted-foreground">{displayAsset.hostname}</p>
             )}
+            <p className="text-sm text-muted-foreground">
+              Última actualización:{' '}
+              {displayAsset.last_scanned
+                ? formatDistanceToNow(new Date(displayAsset.last_scanned), {
+                    addSuffix: true,
+                    locale: es,
+                  })
+                : displayAsset.last_seen
+                ? formatDistanceToNow(new Date(displayAsset.last_seen), {
+                    addSuffix: true,
+                    locale: es,
+                  })
+                : 'Nunca escaneado'}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="outline">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Botones de escaneo avanzado */}
+            <NucleiScanButton
+              target={displayAsset.ip_address}
+              assetId={id}
+              variant="outline"
+              size="sm"
+            />
+            <ZapScanButton
+              defaultUrl={displayAsset.hostname ? `http://${displayAsset.hostname}` : `http://${displayAsset.ip_address}`}
+              assetId={id}
+              compact
+            />
+            
+            {/* Separador */}
+            <div className="hidden sm:block h-6 w-px bg-border mx-1" />
+            
+            {/* Botones de gestión */}
+            <Button variant="outline" size="sm">
               <Pencil className="mr-2 h-4 w-4" />
               Editar
             </Button>
             <Button
               variant="destructive"
+              size="sm"
               onClick={() => setShowDeleteDialog(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -379,15 +416,80 @@ export default function AssetDetailPage({ params }: AssetDetailPageProps) {
             <CardHeader>
               <CardTitle>Historial de Escaneos</CardTitle>
               <CardDescription>
-                Escaneos que incluyeron este asset
+                {displayScans.length} escaneos incluyeron este asset
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={Radar}
-                title="Sin escaneos"
-                description="Este asset no ha sido incluido en ningún escaneo aún. El historial de escaneos estará disponible próximamente."
-              />
+              {displayScans.length === 0 ? (
+                <EmptyState
+                  icon={Radar}
+                  title="Sin escaneos"
+                  description="Este asset no ha sido incluido en ningún escaneo aún. Usa los botones de arriba para iniciar un escaneo."
+                />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Vulnerabilidades</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {displayScans.map((scan) => (
+                      <TableRow key={scan.id}>
+                        <TableCell>
+                          <Link
+                            href={`/scans/${scan.id}`}
+                            className="font-medium hover:text-primary transition-colors"
+                          >
+                            {scan.name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {scan.scan_type.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {scan.completed_at
+                            ? formatDistanceToNow(new Date(scan.completed_at), { 
+                                addSuffix: true, 
+                                locale: es 
+                              })
+                            : scan.started_at
+                              ? 'En progreso'
+                              : 'Pendiente'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={scan.status} size="sm" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium">{scan.total_vulnerabilities || 0}</span>
+                            {(scan.vuln_critical || 0) > 0 && (
+                              <Badge variant="destructive" className="text-xs ml-1">
+                                {scan.vuln_critical} críticas
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Link href={`/scans/${scan.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

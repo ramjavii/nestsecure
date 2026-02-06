@@ -360,10 +360,13 @@ function VulnerabilitiesPageContent() {
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {formatDistanceToNow(new Date(vuln.detected_at), {
+                          {vuln.detected_at ? formatDistanceToNow(new Date(vuln.detected_at), {
                             addSuffix: true,
                             locale: es,
-                          })}
+                          }) : vuln.created_at ? formatDistanceToNow(new Date(vuln.created_at), {
+                            addSuffix: true,
+                            locale: es,
+                          }) : '-'}
                         </TableCell>
                       </TableRow>
                     ))}

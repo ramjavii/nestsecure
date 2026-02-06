@@ -26,6 +26,8 @@ from app.api.deps import CurrentActiveUser, require_role
 from app.db.session import get_db
 from app.models.asset import Asset, AssetCriticality, AssetStatus, AssetType
 from app.models.service import Service
+from app.models.vulnerability import Vulnerability
+from app.models.scan import Scan
 from app.models.user import UserRole
 from app.schemas.asset import (
     AssetCreate,
@@ -37,6 +39,8 @@ from app.schemas.asset import (
 )
 from app.schemas.common import DeleteResponse, MessageResponse, PaginatedResponse
 from app.schemas.service import ServiceRead
+from app.schemas.vulnerability import VulnerabilityRead
+from app.schemas.scan import ScanRead
 
 router = APIRouter()
 
@@ -440,6 +444,104 @@ async def get_asset_services(
     services = result.scalars().all()
     
     return [ServiceRead.model_validate(s) for s in services]
+
+
+# =============================================================================
+# Get Asset Vulnerabilities
+# =============================================================================
+@router.get(
+    "/{asset_id}/vulnerabilities",
+    response_model=list[VulnerabilityRead],
+    summary="Vulnerabilidades del asset",
+    description="Lista todas las vulnerabilidades detectadas en el asset",
+)
+async def get_asset_vulnerabilities(
+    asset_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentActiveUser,
+    severity: str | None = Query(default=None, description="Filtrar por severidad"),
+    status_filter: str | None = Query(default=None, alias="status", description="Filtrar por estado"),
+    deduplicate: bool = Query(default=True, description="Deduplicar vulnerabilidades por nombre"),
+):
+    """
+    Lista las vulnerabilidades de un asset.
+    
+    Incluye todas las vulnerabilidades detectadas en cualquier scan
+    que haya incluido este asset. Por defecto, deduplica por nombre
+    mostrando solo la detección más reciente de cada vulnerabilidad.
+    """
+    # Verificar que el asset existe y pertenece a la organización
+    await get_asset_or_404(db, asset_id, current_user.organization_id)
+    
+    # Construir query
+    stmt = select(Vulnerability).where(
+        Vulnerability.asset_id == asset_id,
+        Vulnerability.organization_id == current_user.organization_id,
+    )
+    
+    if severity:
+        stmt = stmt.where(Vulnerability.severity == severity)
+    if status_filter:
+        stmt = stmt.where(Vulnerability.status == status_filter)
+    
+    stmt = stmt.order_by(Vulnerability.severity.desc(), Vulnerability.cvss_score.desc(), Vulnerability.created_at.desc())
+    
+    result = await db.execute(stmt)
+    vulnerabilities = result.scalars().all()
+    
+    if deduplicate:
+        # Deduplicar por nombre, quedándose con la más reciente
+        seen_names = {}
+        unique_vulns = []
+        for v in vulnerabilities:
+            if v.name not in seen_names:
+                seen_names[v.name] = True
+                unique_vulns.append(v)
+        vulnerabilities = unique_vulns
+    
+    return [VulnerabilityRead.model_validate(v) for v in vulnerabilities]
+
+
+# =============================================================================
+# Get Asset Scans History
+# =============================================================================
+@router.get(
+    "/{asset_id}/scans",
+    response_model=list[ScanRead],
+    summary="Historial de scans del asset",
+    description="Lista todos los scans que han incluido este asset",
+)
+async def get_asset_scans(
+    asset_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentActiveUser,
+):
+    """
+    Lista los scans que han escaneado este asset.
+    
+    Busca scans cuyo target incluya la IP del asset.
+    """
+    # Obtener el asset
+    asset = await get_asset_or_404(db, asset_id, current_user.organization_id)
+    
+    # Buscar scans que tengan este target
+    # También buscar por vulnerabilidades asociadas
+    vuln_scan_ids = select(Vulnerability.scan_id).where(
+        Vulnerability.asset_id == asset_id
+    ).distinct()
+    
+    stmt = select(Scan).where(
+        Scan.organization_id == current_user.organization_id,
+        or_(
+            Scan.targets.contains([str(asset.ip_address)]),
+            Scan.id.in_(vuln_scan_ids)
+        )
+    ).order_by(Scan.created_at.desc())
+    
+    result = await db.execute(stmt)
+    scans = result.scalars().all()
+    
+    return [ScanRead.model_validate(s) for s in scans]
 
 
 # =============================================================================

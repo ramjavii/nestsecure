@@ -65,16 +65,16 @@ RUN ARCH=$(dpkg --print-architecture) && \
     rm -rf /tmp/nuclei /tmp/nuclei.zip && \
     nuclei -version
 
+# Crear usuario no-root para seguridad (antes de crear directorios con ownership)
+RUN groupadd --gid 1000 nestsecure \
+    && useradd --uid 1000 --gid nestsecure --shell /bin/bash --create-home nestsecure
+
 # Crear directorio para templates de Nuclei
 RUN mkdir -p /opt/nuclei-templates && \
     chown nestsecure:nestsecure /opt/nuclei-templates
 
 # Variable de entorno para templates
 ENV NUCLEI_TEMPLATES_PATH=/opt/nuclei-templates
-
-# Crear usuario no-root para seguridad
-RUN groupadd --gid 1000 nestsecure \
-    && useradd --uid 1000 --gid nestsecure --shell /bin/bash --create-home nestsecure
 
 # Directorio de trabajo
 WORKDIR /app

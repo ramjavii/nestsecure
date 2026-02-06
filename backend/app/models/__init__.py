@@ -11,6 +11,7 @@ from app.models.asset import Asset, AssetCriticality, AssetStatus, AssetType
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
 from app.models.cve_cache import CVECache
 from app.models.organization import Organization
+from app.models.report import Report, ReportFormat, ReportStatus, ReportType
 from app.models.scan import Scan, ScanStatus, ScanType
 from app.models.service import Service, ServiceProtocol, ServiceState
 from app.models.user import User, UserRole
@@ -30,6 +31,7 @@ __all__ = [
     "Service",
     "Scan",
     "CVECache",
+    "Report",
     "Vulnerability",
     "VulnerabilityComment",
     # Enums
@@ -41,6 +43,9 @@ __all__ = [
     "ServiceState",
     "ScanType",
     "ScanStatus",
+    "ReportType",
+    "ReportFormat",
+    "ReportStatus",
     "VulnerabilitySeverity",
     "VulnerabilityStatus",
 ]

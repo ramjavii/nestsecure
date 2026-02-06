@@ -166,10 +166,10 @@ function HostRow({ host }: { host: ScanHost }) {
                   {host.services.map((service) => (
                     <div
                       key={service.id}
-                      className="flex items-center gap-3 p-2 rounded-md bg-background border"
+                      className="flex items-center gap-3 p-3 rounded-md bg-background border group"
                     >
                       <div className={cn(
-                        "h-2 w-2 rounded-full",
+                        "h-2 w-2 rounded-full shrink-0",
                         service.state === 'open' ? 'bg-green-500' :
                         service.state === 'filtered' ? 'bg-yellow-500' : 'bg-red-500'
                       )} />
@@ -206,7 +206,7 @@ function HostRow({ host }: { host: ScanHost }) {
 export default function ScanDetailPage({ params }: ScanDetailPageProps) {
   const { id } = use(params);
   const router = useRouter();
-  const { data: scan, isLoading } = useScan(id);
+  const { data: scan, isLoading, refetch: refetchScan } = useScan(id);
   const stopScan = useStopScan();
   const { toast } = useToast();
   const [showStopDialog, setShowStopDialog] = useState(false);
@@ -215,7 +215,7 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
   const displayScan = scan || emptyScan;
 
   // Fetch results, hosts, and logs with polling based on scan status
-  const { data: resultsData, isLoading: loadingResults } = useScanResults(id, displayScan.status);
+  const { data: resultsData, isLoading: loadingResults, refetch: refetchResults } = useScanResults(id, displayScan.status);
   const { data: hostsData, isLoading: loadingHosts } = useScanHosts(id, displayScan.status);
   const { data: logsData, isLoading: loadingLogs } = useScanLogs(id, displayScan.status);
 
@@ -275,7 +275,7 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {displayScan.status === 'running' && (
               <Button
                 variant="destructive"
@@ -486,27 +486,65 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
             </CardHeader>
             <CardContent>
               {loadingHosts ? (
-                <TableSkeleton columns={7} rows={5} />
+                <TableSkeleton columns={5} rows={5} />
               ) : hostsData?.hosts && hostsData.hosts.length > 0 ? (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10"></TableHead>
-                        <TableHead>IP</TableHead>
-                        <TableHead>Hostname</TableHead>
-                        <TableHead>Sistema Operativo</TableHead>
-                        <TableHead>Servicios</TableHead>
-                        <TableHead>Vulnerabilidades</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {hostsData.hosts.map((host) => (
-                        <HostRow key={host.id} host={host} />
-                      ))}
-                    </TableBody>
-                  </Table>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {hostsData.hosts.map((host) => (
+                    <Link
+                      key={host.id}
+                      href={`/assets/${host.id}`}
+                      className="group block"
+                    >
+                      <div className="p-4 rounded-lg border bg-card hover:bg-muted/50 hover:border-primary/50 transition-all">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Server className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-mono font-medium text-sm">{host.ip_address}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {host.hostname || 'Sin hostname'}
+                              </p>
+                            </div>
+                          </div>
+                          <StatusBadge status={host.status} size="sm" />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Network className="h-3.5 w-3.5" />
+                            <span>{host.services_count} servicios</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Shield className="h-3.5 w-3.5" />
+                            <span>{host.vulnerabilities_count} vulns</span>
+                          </div>
+                        </div>
+                        
+                        {(host.vuln_critical > 0 || host.vuln_high > 0) && (
+                          <div className="flex gap-1.5 mt-2 pt-2 border-t">
+                            {host.vuln_critical > 0 && (
+                              <Badge variant="destructive" className="text-xs px-1.5 py-0">
+                                {host.vuln_critical} críticas
+                              </Badge>
+                            )}
+                            {host.vuln_high > 0 && (
+                              <Badge className="bg-orange-500 hover:bg-orange-600 text-xs px-1.5 py-0">
+                                {host.vuln_high} altas
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                        
+                        {host.operating_system && (
+                          <p className="text-xs text-muted-foreground mt-2 truncate">
+                            {host.operating_system}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               ) : (
                 <EmptyState
@@ -560,6 +598,11 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
                           <TableCell>
                             <div className="max-w-md">
                               <p className="font-medium truncate">{vuln.name}</p>
+                              {(vuln as any).affected_count > 1 && (
+                                <p className="text-xs text-muted-foreground">
+                                  Afecta a {(vuln as any).affected_count} hosts
+                                </p>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -635,7 +678,7 @@ export default function ScanDetailPage({ params }: ScanDetailPageProps) {
                   ))}
                 </div>
               ) : logsData?.logs && logsData.logs.length > 0 ? (
-                <div className="bg-zinc-950 rounded-lg p-4 font-mono text-sm max-h-[500px] overflow-y-auto space-y-2">
+                <div className="bg-zinc-950 rounded-lg p-4 font-mono text-sm max-h-96 overflow-y-auto space-y-2">
                   {logsData.logs.map((log, index) => (
                     <div
                       key={index}

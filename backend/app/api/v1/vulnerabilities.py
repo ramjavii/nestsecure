@@ -88,6 +88,7 @@ async def list_vulnerabilities(
     sort_order: Optional[str] = Query("desc", description="Orden: asc o desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    deduplicate: bool = Query(True, description="Deduplicar vulnerabilidades por nombre"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -95,23 +96,19 @@ async def list_vulnerabilities(
     Listar vulnerabilidades de la organización.
     
     Soporta filtros por severidad, estado y búsqueda por texto.
+    Por defecto deduplica las vulnerabilidades por nombre.
     """
-    # Base query
+    # Base query - get all to deduplicate first
     query = select(Vulnerability).where(
-        Vulnerability.organization_id == current_user.organization_id
-    )
-    count_query = select(func.count(Vulnerability.id)).where(
         Vulnerability.organization_id == current_user.organization_id
     )
     
     # Filtros
     if severity:
         query = query.where(Vulnerability.severity == severity)
-        count_query = count_query.where(Vulnerability.severity == severity)
     
     if status:
         query = query.where(Vulnerability.status == status)
-        count_query = count_query.where(Vulnerability.status == status)
     
     if search:
         search_filter = f"%{search}%"
@@ -120,29 +117,33 @@ async def list_vulnerabilities(
             (Vulnerability.cve_id.ilike(search_filter)) |
             (Vulnerability.description.ilike(search_filter))
         )
-        count_query = count_query.where(
-            (Vulnerability.name.ilike(search_filter)) |
-            (Vulnerability.cve_id.ilike(search_filter)) |
-            (Vulnerability.description.ilike(search_filter))
-        )
     
     # Ordenamiento
     order_column = getattr(Vulnerability, sort_by, Vulnerability.cvss_score)
     if sort_order == "asc":
-        query = query.order_by(order_column)
+        query = query.order_by(order_column, Vulnerability.created_at.desc())
     else:
-        query = query.order_by(desc(order_column))
-    
-    # Paginación
-    offset = (page - 1) * page_size
-    query = query.offset(offset).limit(page_size)
+        query = query.order_by(desc(order_column), Vulnerability.created_at.desc())
     
     # Ejecutar
     result = await db.execute(query)
     vulns = result.scalars().all()
     
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
+    if deduplicate:
+        # Deduplicar por nombre, quedándose con la más reciente
+        seen_names = {}
+        unique_vulns = []
+        for v in vulns:
+            if v.name not in seen_names:
+                seen_names[v.name] = True
+                unique_vulns.append(v)
+        vulns = unique_vulns
+    
+    total = len(vulns)
+    
+    # Paginación después de deduplicar
+    offset = (page - 1) * page_size
+    vulns = vulns[offset:offset + page_size]
     
     return [
         VulnerabilityResponse(

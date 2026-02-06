@@ -32,7 +32,7 @@ export interface Organization {
 }
 
 // Scan types
-export type ScanType = 'discovery' | 'port_scan' | 'vulnerability' | 'full';
+export type ScanType = 'discovery' | 'port_scan' | 'service_scan' | 'vulnerability' | 'full' | 'nuclei' | 'zap' | 'openvas';
 export type ScanStatus = 'pending' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface Scan {
@@ -393,4 +393,64 @@ export interface CVELookupRequest {
 export interface CVELookupResponse {
   found: CVE[];
   not_found: string[];
+}
+
+// ==========================================================================
+// Report types
+// ==========================================================================
+export type ReportType = 'executive' | 'technical' | 'compliance' | 'vulnerability' | 'asset_inventory' | 'scan_summary';
+export type ReportFormat = 'pdf' | 'xlsx' | 'json' | 'csv';
+export type ReportStatus = 'pending' | 'generating' | 'completed' | 'failed';
+
+export interface Report {
+  id: string;
+  name: string;
+  report_type: ReportType;
+  format: ReportFormat;
+  status: ReportStatus;
+  description?: string;
+  file_size?: number;
+  parameters?: Record<string, unknown>;
+  error_message?: string;
+  completed_at?: string;
+  created_by_id?: string;
+  is_downloadable: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReportSummary {
+  id: string;
+  name: string;
+  report_type: ReportType;
+  format: ReportFormat;
+  status: ReportStatus;
+  created_at: string;
+  completed_at?: string;
+  is_downloadable: boolean;
+}
+
+export interface GenerateReportPayload {
+  name: string;
+  report_type: ReportType;
+  format: ReportFormat;
+  description?: string;
+  date_from?: string;
+  date_to?: string;
+  severity_filter?: string[];
+  status_filter?: string[];
+  asset_ids?: string[];
+}
+
+export interface GenerateReportResponse {
+  id: string;
+  status: ReportStatus;
+  message: string;
+}
+
+export interface ReportListResponse {
+  reports: ReportSummary[];
+  total: number;
+  page: number;
+  page_size: number;
 }

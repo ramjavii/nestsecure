@@ -38,8 +38,11 @@ class ScanType(str, Enum):
     DISCOVERY = "discovery"          # Nmap ping scan - descubrir hosts
     PORT_SCAN = "port_scan"          # Nmap port scan
     SERVICE_SCAN = "service_scan"    # Detección de servicios y versiones
-    VULNERABILITY = "vulnerability"  # Escaneo de vulnerabilidades
+    VULNERABILITY = "vulnerability"  # Escaneo de vulnerabilidades con Nmap NSE
     FULL = "full"                    # Todos los anteriores
+    NUCLEI = "nuclei"                # Escaneo con Nuclei templates
+    ZAP = "zap"                      # Escaneo DAST con OWASP ZAP
+    OPENVAS = "openvas"              # Escaneo con OpenVAS/GVM
 
 
 class ScanStatus(str, Enum):

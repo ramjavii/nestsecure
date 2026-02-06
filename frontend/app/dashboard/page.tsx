@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { api } from '@/lib/api';
-import { Server, Radar, AlertTriangle, Shield, Activity, Clock } from 'lucide-react';
+import { Server, Radar, AlertTriangle, Shield, Activity } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
@@ -144,7 +144,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-destructive">
-                  {(stats?.vulnerabilities?.critical || 0) + (stats?.vulnerabilities?.high || 0)}
+                  {stats?.vulnerabilities?.total || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {stats?.vulnerabilities?.critical || 0} críticas, {stats?.vulnerabilities?.high || 0} altas
@@ -210,20 +210,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Recent Activity */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Actividad Reciente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                No hay actividad reciente para mostrar.
-              </p>
-            </CardContent>
-          </Card>
         </div>
       </main>
     </div>

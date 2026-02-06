@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   User,
   Shield,
@@ -12,6 +13,8 @@ import {
   Camera,
   Eye,
   EyeOff,
+  Radar,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,14 +33,22 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PageHeader } from "@/components/shared/page-header";
 import { useToast } from "@/hooks/use-toast";
-import { useAuthStore } from "@/lib/stores/auth-store";
+import { useSettings } from "@/hooks/use-settings";
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const user = useAuthStore((state) => state.user);
-  const [isSaving, setIsSaving] = useState(false);
+  const { 
+    user, 
+    isLoading, 
+    updateProfileAsync, 
+    isUpdating, 
+    changePasswordAsync, 
+    isChanging 
+  } = useSettings();
+  
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [isSavingOther, setIsSavingOther] = useState(false);
 
   // Derive first_name and last_name from full_name if not present
   const nameParts = user?.full_name?.split(' ') || [];
@@ -50,6 +61,18 @@ export default function SettingsPage() {
     last_name: lastName,
     email: user?.email || "",
   });
+
+  // Update form when user data loads
+  useEffect(() => {
+    if (user) {
+      const parts = user.full_name?.split(' ') || [];
+      setProfileForm({
+        first_name: user.first_name || parts[0] || '',
+        last_name: user.last_name || parts.slice(1).join(' ') || '',
+        email: user.email || "",
+      });
+    }
+  }, [user]);
 
   // Password form state
   const [passwordForm, setPasswordForm] = useState({
@@ -84,15 +107,19 @@ export default function SettingsPage() {
     date_format: "DD/MM/YYYY",
   });
 
+  const isSaving = isUpdating || isChanging || isSavingOther;
+
   const handleSaveProfile = async () => {
-    setIsSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    toast({
-      title: "Perfil actualizado",
-      description: "Los cambios han sido guardados correctamente.",
-    });
+    try {
+      // Build full_name from first_name and last_name
+      const fullName = `${profileForm.first_name} ${profileForm.last_name}`.trim();
+      await updateProfileAsync({
+        full_name: fullName,
+        email: profileForm.email,
+      });
+    } catch (error) {
+      // Error handled by the hook
+    }
   };
 
   const handleChangePassword = async () => {
@@ -104,24 +131,36 @@ export default function SettingsPage() {
       });
       return;
     }
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setPasswordForm({
-      current_password: "",
-      new_password: "",
-      confirm_password: "",
-    });
-    toast({
-      title: "Contraseña actualizada",
-      description: "Tu contraseña ha sido cambiada correctamente.",
-    });
+    
+    if (passwordForm.new_password.length < 8) {
+      toast({
+        title: "Error",
+        description: "La nueva contraseña debe tener al menos 8 caracteres",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      await changePasswordAsync({
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password,
+      });
+      // Clear form on success
+      setPasswordForm({
+        current_password: "",
+        new_password: "",
+        confirm_password: "",
+      });
+    } catch (error) {
+      // Error handled by the hook
+    }
   };
 
   const handleSaveNotifications = async () => {
-    setIsSaving(true);
+    setIsSavingOther(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    setIsSavingOther(false);
     toast({
       title: "Notificaciones actualizadas",
       description: "Tus preferencias de notificación han sido guardadas.",
@@ -129,9 +168,9 @@ export default function SettingsPage() {
   };
 
   const handleSaveSecurity = async () => {
-    setIsSaving(true);
+    setIsSavingOther(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    setIsSavingOther(false);
     toast({
       title: "Configuración de seguridad actualizada",
       description: "Los cambios de seguridad han sido aplicados.",
@@ -139,9 +178,9 @@ export default function SettingsPage() {
   };
 
   const handleSaveAppearance = async () => {
-    setIsSaving(true);
+    setIsSavingOther(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    setIsSavingOther(false);
     toast({
       title: "Preferencias guardadas",
       description: "Tus preferencias de visualización han sido actualizadas.",
@@ -172,6 +211,10 @@ export default function SettingsPage() {
           <TabsTrigger value="appearance" className="gap-2">
             <Palette className="h-4 w-4" />
             <span className="hidden sm:inline">Apariencia</span>
+          </TabsTrigger>
+          <TabsTrigger value="scanners" className="gap-2">
+            <Radar className="h-4 w-4" />
+            <span className="hidden sm:inline">Scanners</span>
           </TabsTrigger>
         </TabsList>
 
@@ -704,6 +747,33 @@ export default function SettingsPage() {
                   {isSaving ? "Guardando..." : "Guardar Preferencias"}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Scanners Tab */}
+        <TabsContent value="scanners" className="mt-6 space-y-6">
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Radar className="h-5 w-5 text-primary" />
+                Escáneres de Vulnerabilidades
+              </CardTitle>
+              <CardDescription>
+                Configura y monitorea los escáneres de seguridad
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Accede a la página de configuración de escáneres para ver el estado
+                de Nuclei y OWASP ZAP, así como configurar perfiles por defecto.
+              </p>
+              <Button asChild>
+                <Link href="/settings/scanners">
+                  Ir a Configuración de Scanners
+                  <ExternalLink className="h-4 w-4 ml-2" />
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

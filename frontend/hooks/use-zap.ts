@@ -191,7 +191,10 @@ export function useZapScanStatus(
 ) {
   return useQuery({
     queryKey: zapKeys.scanStatus(taskId),
-    queryFn: () => api.getZapScanStatus(taskId),
+    queryFn: async () => {
+      const response = await api.getZapScanStatus(taskId);
+      return response as unknown as ZapScanStatusResponse;
+    },
     enabled: !!taskId,
     refetchInterval: (query) => {
       const data = query.state.data;
@@ -215,7 +218,10 @@ export function useZapScanResults(
 ) {
   return useQuery({
     queryKey: zapKeys.scanResults(taskId),
-    queryFn: () => api.getZapScanResults(taskId),
+    queryFn: async () => {
+      const response = await api.getZapScanResults(taskId);
+      return response as unknown as ZapScanResults;
+    },
     enabled: !!taskId,
     staleTime: 60 * 1000, // Results don't change after completion
     ...options,
@@ -236,7 +242,10 @@ export function useZapAlerts(
 ) {
   return useQuery({
     queryKey: zapKeys.alerts(params?.base_url),
-    queryFn: () => api.getZapAlerts(params),
+    queryFn: async () => {
+      const response = await api.getZapAlerts(params);
+      return response as unknown as ZapAlert[];
+    },
     staleTime: 30 * 1000, // 30 seconds
     ...options,
   });
