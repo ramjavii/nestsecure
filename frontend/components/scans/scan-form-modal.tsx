@@ -88,8 +88,57 @@ export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
   const scanType = watch('scan_type');
   const targetsValue = watch('targets');
 
+  // Obtener información del tipo de scan
+  const getScanTypeInfo = (type: string) => {
+    const info: Record<string, { inputFormat: string; example: string; requiresProtocol: boolean }> = {
+      nuclei: {
+        inputFormat: 'URLs con protocolo http:// o https://',
+        example: 'http://192.168.15.50\nhttps://example.com',
+        requiresProtocol: true,
+      },
+      zap: {
+        inputFormat: 'URLs web completas con protocolo',
+        example: 'http://192.168.15.50/app\nhttps://example.com/login',
+        requiresProtocol: true,
+      },
+      openvas: {
+        inputFormat: 'IPs, rangos CIDR, o hostnames',
+        example: '192.168.15.0/24\n192.168.15.50\nexample.com',
+        requiresProtocol: false,
+      },
+      discovery: {
+        inputFormat: 'IPs o rangos CIDR',
+        example: '192.168.1.0/24\n10.0.0.1',
+        requiresProtocol: false,
+      },
+      port_scan: {
+        inputFormat: 'IPs o rangos CIDR',
+        example: '192.168.1.0/24\n10.0.0.1',
+        requiresProtocol: false,
+      },
+      service_scan: {
+        inputFormat: 'IPs o rangos CIDR',
+        example: '192.168.1.0/24\n10.0.0.1',
+        requiresProtocol: false,
+      },
+      vulnerability: {
+        inputFormat: 'IPs o rangos CIDR',
+        example: '192.168.1.0/24\n10.0.0.1',
+        requiresProtocol: false,
+      },
+      full: {
+        inputFormat: 'IPs o rangos CIDR',
+        example: '192.168.1.0/24\n10.0.0.1',
+        requiresProtocol: false,
+      },
+    };
+    return info[type] || info['discovery'];
+  };
+
+  const currentScanInfo = getScanTypeInfo(scanType);
+
   // Validar targets cuando cambian
-  const validateTargets = useCallback((value: string) => {
+  const validateTargets = useCallback((value: string, scanType: string) => {
     if (!value || !value.trim()) {
       setTargetValidation(null);
       return;
@@ -105,27 +154,54 @@ export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
       return;
     }
 
-    const result = validateMultipleTargetsLocally(targets);
-    const errorMessages = result.results
-      .filter((r) => !r.valid)
-      .map((r) => `${r.target}: ${r.error}`);
+    const errors: string[] = [];
+    let validCount = 0;
+    const scanInfo = getScanTypeInfo(scanType);
+
+    targets.forEach((target) => {
+      if (scanInfo.requiresProtocol) {
+        // ZAP y Nuclei requieren URLs con protocolo
+        if (!target.startsWith('http://') && !target.startsWith('https://')) {
+          errors.push(`${target}: debe incluir protocolo http:// o https://`);
+          return;
+        }
+        // Validar que sea una URL válida
+        try {
+          new URL(target);
+          validCount++;
+        } catch {
+          errors.push(`${target}: URL inválida`);
+        }
+      } else {
+        // OpenVAS, Nmap, etc: validar IP/CIDR/hostname
+        const result = validateMultipleTargetsLocally([target]);
+        if (result.valid) {
+          validCount++;
+        } else {
+          const targetError = result.results.find(r => r.target === target);
+          if (targetError && !targetError.valid) {
+            errors.push(`${target}: ${targetError.error}`);
+          }
+        }
+      }
+    });
 
     setTargetValidation({
-      valid: result.valid,
-      errors: errorMessages,
-      validCount: result.validCount,
-      invalidCount: result.invalidCount,
+      valid: errors.length === 0,
+      errors,
+      validCount,
+      invalidCount: errors.length,
     });
   }, []);
 
-  // Efecto para validar cuando cambian los targets
+  // Efecto para validar cuando cambian los targets o el tipo de scan
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      validateTargets(targetsValue || '');
+      validateTargets(targetsValue || '', scanType);
     }, 300); // Debounce 300ms
 
     return () => clearTimeout(timeoutId);
-  }, [targetsValue, validateTargets]);
+  }, [targetsValue, scanType, validateTargets]);
 
   const onSubmit = async (data: ScanFormData) => {
     try {
@@ -219,13 +295,13 @@ export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
             <Label htmlFor="targets">Targets</Label>
             <Textarea
               id="targets"
-              placeholder="192.168.1.0/24&#10;10.0.0.1&#10;172.16.0.100"
+              placeholder={currentScanInfo.example}
               rows={3}
               {...register('targets')}
               className={targetValidation && !targetValidation.valid ? 'border-destructive' : ''}
             />
             <p className="text-xs text-muted-foreground">
-              Solo se permiten IPs privadas (10.x, 172.16-31.x, 192.168.x) o CIDR
+              {currentScanInfo.inputFormat}
             </p>
             
             {/* Mostrar estado de validación */}
@@ -266,12 +342,21 @@ export function ScanFormModal({ open, onOpenChange }: ScanFormModalProps) {
             )}
           </div>
 
-          {/* Info de seguridad */}
+          {/* Info específica según tipo de scan */}
           <Alert className="py-2">
             <Info className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              Por seguridad, solo se permiten escaneos a redes privadas (RFC 1918).
-              Las IPs públicas y hostnames están bloqueados.
+              {currentScanInfo.requiresProtocol ? (
+                <>
+                  <strong>{scanType === 'zap' ? 'OWASP ZAP' : 'Nuclei'}</strong> requiere URLs completas con protocolo.
+                  Ejemplo: http://192.168.15.50 o https://app.example.com
+                </>
+              ) : (
+                <>
+                  Por seguridad, solo se permiten escaneos a redes privadas (RFC 1918).
+                  Las IPs públicas están bloqueadas.
+                </>
+              )}
             </AlertDescription>
           </Alert>
 

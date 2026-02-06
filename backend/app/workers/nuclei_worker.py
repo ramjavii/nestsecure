@@ -223,13 +223,15 @@ def _persist_findings(
                 continue
             
             # Crear nueva vulnerabilidad
+            description = finding.get("description") or f"Detected by Nuclei template: {template_id}"
+            
             vuln = Vulnerability(
                 id=str(uuid4()).replace("-", ""),
                 organization_id=org_id,
                 asset_id=asset.id,
                 scan_id=scan_id,
                 name=finding.get("template_name", template_id)[:500],
-                description=finding.get("description", f"Detected by Nuclei template: {template_id}")[:2000],
+                description=description[:2000] if description else "",
                 severity=_severity_to_db(severity),
                 status=VulnerabilityStatus.OPEN.value,
                 host=finding.get("host", "")[:500],
