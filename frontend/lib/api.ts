@@ -810,6 +810,270 @@ class ApiClient {
   }> {
     return this.request('/nuclei/health');
   }
+
+  // =========================================================================
+  // ZAP API
+  // =========================================================================
+
+  /**
+   * Start a ZAP scan
+   */
+  async startZapScan(params: {
+    target_url: string;
+    mode?: 'quick' | 'standard' | 'full' | 'api' | 'passive' | 'spa';
+    asset_id?: string;
+    include_patterns?: string[];
+    exclude_patterns?: string[];
+    timeout?: number;
+  }): Promise<{
+    task_id: string;
+    target_url: string;
+    mode: string;
+    status: string;
+    message: string;
+  }> {
+    return this.request('/zap/scan', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * Get ZAP scan status
+   */
+  async getZapScanStatus(taskId: string): Promise<{
+    task_id: string;
+    status: string;
+    progress?: {
+      phase: string;
+      spider_progress: number;
+      ajax_spider_progress: number;
+      active_scan_progress: number;
+      passive_scan_pending: number;
+      urls_found: number;
+      alerts_found: number;
+      overall_progress: number;
+      elapsed_seconds: number;
+    };
+    started_at?: string;
+    completed_at?: string;
+    error?: string;
+  }> {
+    return this.request(`/zap/scan/${taskId}`);
+  }
+
+  /**
+   * Get ZAP scan results
+   */
+  async getZapScanResults(taskId: string): Promise<{
+    task_id: string;
+    target_url: string;
+    mode: string;
+    status: string;
+    success: boolean;
+    started_at: string;
+    completed_at: string;
+    duration_seconds: number;
+    urls_found: number;
+    alerts_count: number;
+    alerts_summary: {
+      informational: number;
+      low: number;
+      medium: number;
+      high: number;
+      total: number;
+    };
+    alerts: Array<{
+      id: string;
+      name: string;
+      risk: string;
+      confidence: string;
+      url: string;
+      method: string;
+      param?: string;
+      attack?: string;
+      evidence?: string;
+      description: string;
+      solution: string;
+      reference?: string;
+      cwe_id?: number;
+      wasc_id?: number;
+      owasp_top_10?: string;
+      plugin_id: number;
+    }>;
+    errors: string[];
+    spider_scan_id?: string;
+    active_scan_id?: string;
+    context_name?: string;
+  }> {
+    return this.request(`/zap/scan/${taskId}/results`);
+  }
+
+  /**
+   * Cancel a ZAP scan
+   */
+  async cancelZapScan(taskId: string): Promise<void> {
+    return this.request(`/zap/scan/${taskId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Quick ZAP scan (Spider + Passive only)
+   */
+  async zapQuickScan(targetUrl: string, assetId?: string): Promise<{
+    task_id: string;
+    target_url: string;
+    mode: string;
+    status: string;
+    message: string;
+  }> {
+    return this.request('/zap/quick', {
+      method: 'POST',
+      body: JSON.stringify({ target_url: targetUrl, asset_id: assetId }),
+    });
+  }
+
+  /**
+   * Full ZAP scan (Spider + Ajax Spider + Active Scan)
+   */
+  async zapFullScan(targetUrl: string, assetId?: string): Promise<{
+    task_id: string;
+    target_url: string;
+    mode: string;
+    status: string;
+    message: string;
+  }> {
+    return this.request('/zap/full', {
+      method: 'POST',
+      body: JSON.stringify({ target_url: targetUrl, asset_id: assetId }),
+    });
+  }
+
+  /**
+   * ZAP API scan (for REST/GraphQL APIs)
+   */
+  async zapApiScan(
+    targetUrl: string,
+    openapiUrl?: string,
+    assetId?: string
+  ): Promise<{
+    task_id: string;
+    target_url: string;
+    mode: string;
+    status: string;
+    message: string;
+  }> {
+    return this.request('/zap/api', {
+      method: 'POST',
+      body: JSON.stringify({
+        target_url: targetUrl,
+        openapi_url: openapiUrl,
+        asset_id: assetId,
+      }),
+    });
+  }
+
+  /**
+   * ZAP SPA scan (for Single Page Applications)
+   */
+  async zapSpaScan(targetUrl: string, assetId?: string): Promise<{
+    task_id: string;
+    target_url: string;
+    mode: string;
+    status: string;
+    message: string;
+  }> {
+    return this.request('/zap/spa', {
+      method: 'POST',
+      body: JSON.stringify({ target_url: targetUrl, asset_id: assetId }),
+    });
+  }
+
+  /**
+   * Get ZAP scan profiles
+   */
+  async getZapProfiles(): Promise<{
+    profiles: Array<{
+      id: string;
+      name: string;
+      description: string;
+      spider: boolean;
+      ajax_spider: boolean;
+      active_scan: boolean;
+      api_scan: boolean;
+      timeout: number;
+    }>;
+    total: number;
+  }> {
+    return this.request('/zap/profiles');
+  }
+
+  /**
+   * Get ZAP version and status
+   */
+  async getZapVersion(): Promise<{
+    version: string;
+    available: boolean;
+    host: string;
+    port: number;
+  }> {
+    return this.request('/zap/version');
+  }
+
+  /**
+   * Get current ZAP alerts
+   */
+  async getZapAlerts(options?: {
+    base_url?: string;
+    risk?: number;
+    start?: number;
+    count?: number;
+  }): Promise<Array<{
+    id: string;
+    name: string;
+    risk: string;
+    confidence: string;
+    url: string;
+    method: string;
+    param?: string;
+    description: string;
+    solution: string;
+    cwe_id?: number;
+    plugin_id: number;
+  }>> {
+    const params = new URLSearchParams();
+    if (options?.base_url) params.set('base_url', options.base_url);
+    if (options?.risk !== undefined) params.set('risk', String(options.risk));
+    if (options?.start !== undefined) params.set('start', String(options.start));
+    if (options?.count !== undefined) params.set('count', String(options.count));
+
+    const query = params.toString();
+    return this.request(`/zap/alerts${query ? `?${query}` : ''}`);
+  }
+
+  /**
+   * Get ZAP alerts summary
+   */
+  async getZapAlertsSummary(baseUrl?: string): Promise<{
+    informational: number;
+    low: number;
+    medium: number;
+    high: number;
+    total: number;
+  }> {
+    const params = baseUrl ? `?base_url=${encodeURIComponent(baseUrl)}` : '';
+    return this.request(`/zap/alerts/summary${params}`);
+  }
+
+  /**
+   * Clear ZAP session
+   */
+  async clearZapSession(): Promise<void> {
+    return this.request('/zap/clear', {
+      method: 'POST',
+    });
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);

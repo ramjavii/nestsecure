@@ -101,6 +101,12 @@ services:
       GVM_USERNAME: admin
       GVM_PASSWORD: ${GVM_PASSWORD:-admin}
       GVM_TIMEOUT: 7200
+      
+      # OWASP ZAP
+      ZAP_HOST: zap
+      ZAP_PORT: 8080
+      ZAP_API_KEY: ""
+      ZAP_TIMEOUT: 3600
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -225,6 +231,40 @@ services:
       - nestsecure_network
 
   # ---------------------------------------------------------------------------
+  # OWASP ZAP (Zed Attack Proxy)
+  # Escáner DAST (Dynamic Application Security Testing) para aplicaciones web
+  # Modos: Spider, Ajax Spider, Active Scan, Passive Scan, API Scan
+  # ---------------------------------------------------------------------------
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    container_name: nestsecure_zap_dev
+    hostname: zap
+    restart: unless-stopped
+    user: "zap"
+    command: zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=true
+    ports:
+      # ZAP API
+      - "${ZAP_PORT:-8081}:8080"
+    volumes:
+      # Persistencia de datos de ZAP
+      - zap_data:/zap/wrk
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/JSON/core/view/version/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - nestsecure_network
+    # Recursos recomendados para ZAP
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
   # GVM (Greenbone Vulnerability Manager) - OpenVAS
   # Escáner de vulnerabilidades empresarial
   # NOTA: GVM tarda 10-15 minutos en inicializar la primera vez
@@ -290,6 +330,8 @@ volumes:
     name: nestsecure_frontend_node_modules_dev
   frontend_next:
     name: nestsecure_frontend_next_dev
+  zap_data:
+    name: nestsecure_zap_data_dev
   gvm_data:
     name: nestsecure_gvm_data_dev
   gvm_scap:

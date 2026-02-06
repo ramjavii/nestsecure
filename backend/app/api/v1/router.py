@@ -14,6 +14,7 @@ Incluye:
 - /cve: Caché de CVEs
 - /scans: Gestión de escaneos OpenVAS
 - /nuclei: Escaneos de vulnerabilidades con Nuclei
+- /zap: Escaneos DAST con OWASP ZAP
 """
 
 from fastapi import APIRouter
@@ -30,6 +31,7 @@ from app.api.v1.scans import router as scans_router
 from app.api.v1.services import router as services_router
 from app.api.v1.users import router as users_router
 from app.api.v1.vulnerabilities import router as vulnerabilities_router
+from app.api.v1.zap import router as zap_router
 
 # Router principal de la API v1
 api_router = APIRouter()
@@ -105,6 +107,12 @@ api_router.include_router(
     correlation_router,
     prefix="/correlation",
     tags=["Correlation"],
+)
+
+api_router.include_router(
+    zap_router,
+    prefix="/zap",
+    tags=["ZAP"],
 )
 
 # Health check para la API (útil para load balancers)
